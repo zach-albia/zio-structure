@@ -5,7 +5,8 @@ version := "0.1"
 scalaVersion := "2.13.0"
 
 libraryDependencies ++= Seq(
-  "dev.zio" %% "zio" % "1.0.0-RC12-1"
+  "dev.zio" %% "zio" % "1.0.0-RC12-1",
+  "org.typelevel" %% "cats-core" % "2.0.0"
 )
 
 resolvers += Resolver.sonatypeRepo("releases")
