@@ -4,13 +4,29 @@ import zio.{Ref, UIO}
 
 import scala.language.higherKinds
 
+/**
+  * I guess the convention is for traits to have environment members. In this
+  * case, `fooRepository` is such a member.
+  *
+  * @tparam F The effect type
+  */
 trait FooRepository[F[_]] {
 
+  /** Environment member */
   val fooRepository: FooRepository.Service[F]
 }
 
+/**
+  * This is the companion object containing the actual interface of this
+  * environment member
+  */
 object FooRepository {
 
+  /**
+    * Service
+    *
+    * @tparam F The repository effect type
+    */
   trait Service[F[_]] {
 
     def create(name: String): F[Foo]
@@ -22,6 +38,9 @@ object FooRepository {
     def delete(id: String): F[Unit]
   }
 
+  /**
+    * Sample in-memory implementation
+    */
   final case class InMemoryFooRepository(
       ref: Ref[Map[String, Foo]],
       counter: Ref[Long]
