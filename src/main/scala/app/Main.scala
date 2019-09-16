@@ -25,8 +25,9 @@ object Main extends App {
       foos <- (for {
         foo <- fooService.createFoo("foo")
         bar <- fooService.createFoo(name = "bar")
-        foos <- fooService.mergeFoos(foo.id, bar.id)
-      } yield foos).provideSome[Environment] { base =>
+        failure <- fooService.mergeFoos("bogus ID", bar.id)
+        success <- fooService.mergeFoos(foo.id, bar.id)
+      } yield (failure, success)).provideSome[Environment] { base =>
         new AppEnvironment {
           override val console: Console.Service[Any] = base.console
           override val functionK: FunctionK[UIO, UIO] =
@@ -39,8 +40,9 @@ object Main extends App {
             Transactor.InMemoryTransactor()
         }
       }
+      _ <- env.console.putStrLn(s"Failing result: ${foos._1.toString}")
       exitCode <- env.console
-        .putStrLn(foos.toString)
+        .putStrLn(s"Successful result: ${foos._2.toString}")
         .fold(_ => 1, _ => 0)
 
     } yield exitCode

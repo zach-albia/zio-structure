@@ -79,7 +79,7 @@ object FooService {
           .map(_.sequence)
         resOpt = for {
           foos <- foosOpt
-          fooPair <- foos.headOption.zip(foos.tail.headOption)
+          fooPair <- pairFoos(foos)
           fa = for {
             foo <- env.fooRepository
               .update(fooId, fooPair._1.name + " " + fooPair._2.name)
@@ -89,8 +89,13 @@ object FooService {
           res = env.functionK(env.transactor.transact(fa))
         } yield res
         result <- ZIO.sequence(resOpt)
-        mergedFoos = result.flatten.sequence
-          .flatMap(l => l.headOption.zip(l.tail.headOption))
+        mergedFoos = result.flatten.sequence.flatMap(pairFoos)
       } yield mergedFoos
+  }
+
+  private def pairFoos(foos: List[Foo]) = {
+    if (foos.length == 2) {
+      Some((foos.head, foos.tail.head))
+    } else None
   }
 }
