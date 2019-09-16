@@ -23,7 +23,7 @@ trait FooRepository[F[_]] {
 object FooRepository {
 
   /**
-    * Service
+    * Basic CRUD interface
     *
     * @tparam F The repository effect type
     */

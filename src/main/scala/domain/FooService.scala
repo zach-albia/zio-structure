@@ -80,19 +80,20 @@ object FooService {
         resOpt = for {
           foos <- foosOpt
           fooPair <- pairFoos(foos)
-          fa = for {
+          mergeF = for {
             foo <- env.fooRepository
               .update(fooId, fooPair._1.name + " " + fooPair._2.name)
             other <- env.fooRepository
               .update(otherId, fooPair._2.name + " " + fooPair._1.name)
           } yield List(foo, other)
-          res = env.functionK(env.transactor.transact(fa))
+          res = env.functionK(env.transactor.transact(mergeF))
         } yield res
         result <- ZIO.sequence(resOpt)
         mergedFoos = result.flatten.sequence.flatMap(pairFoos)
       } yield mergedFoos
   }
 
+  /** Pairs foos iff the list has two elements */
   private def pairFoos(foos: List[Foo]) = {
     if (foos.length == 2) {
       Some((foos.head, foos.tail.head))
