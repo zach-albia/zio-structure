@@ -1,16 +1,20 @@
 package app
 
+import cats._
+import cats.implicits._
 import cats.arrow.FunctionK
-import domain.{Foo, FooRepository, FooService, HasFunctionK}
+import domain._
 import zio.console.Console
+import zio.interop.catz._
 import zio.{App, Ref, UIO, ZIO}
 
 object Main extends App {
 
   trait AppEnvironment
       extends FooRepository[UIO]
-      with HasFunctionK[UIO, UIO]
       with Console
+      with HasFunctionK[UIO, UIO]
+      with Transactor[UIO]
 
   val fooService: FooService.Service[AppEnvironment, UIO, Any, Nothing] =
     new FooService.Service[AppEnvironment, UIO, Any, Nothing] {}
@@ -20,7 +24,11 @@ object Main extends App {
       env <- ZIO.environment[Main.Environment]
       map <- Ref.make(Map.empty[String, Foo])
       counter <- Ref.make(0L)
-      result <- fooService.createFoo("bar").provideSome[Environment] { base =>
+      foos <- (for {
+        foo <- fooService.createFoo("foo")
+        bar <- fooService.createFoo(name = "bar")
+        foos <- fooService.mergeFoos(foo.id, bar.id)
+      } yield foos).provideSome[Environment] { base =>
         new AppEnvironment {
           override val console: Console.Service[Any] = base.console
           override val functionK: FunctionK[UIO, UIO] =
@@ -29,10 +37,12 @@ object Main extends App {
             }
           override val fooRepository =
             FooRepository.InMemoryFooRepository(map, counter)
+          override val transactor: Transactor.Service[UIO] =
+            Transactor.InMemoryTransactor()
         }
       }
       exitCode <- env.console
-        .putStrLn(result.toString)
+        .putStrLn(foos.toString)
         .fold(_ => 1, _ => 0)
 
     } yield exitCode
