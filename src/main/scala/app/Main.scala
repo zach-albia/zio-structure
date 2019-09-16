@@ -1,7 +1,5 @@
 package app
 
-import cats._
-import cats.implicits._
 import cats.arrow.FunctionK
 import domain._
 import zio.console.Console

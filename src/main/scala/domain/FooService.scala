@@ -40,7 +40,7 @@ object FooService {
             foo <- env.fooRepository
               .update(fooId, fooPair._1.name + " " + fooPair._2.name)
             other <- env.fooRepository
-              .update(fooId, fooPair._2.name + " " + fooPair._1.name)
+              .update(otherId, fooPair._2.name + " " + fooPair._1.name)
           } yield List(foo, other)
           res = env.functionK(env.transactor.transact(fa))
         } yield res
