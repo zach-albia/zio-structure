@@ -6,7 +6,7 @@ import zio._
 import zio.console.Console
 import zio.interop.catz._
 
-object Main extends App {
+object InMemoryMain extends App {
 
   /** These are all this program's environment members in one trait */
   trait AppEnvironment
@@ -15,13 +15,12 @@ object Main extends App {
       with HasFunctionK[UIO, UIO]
       with Transactor[UIO]
 
-  def run(args: List[String]): ZIO[Main.Environment, Nothing, Int] =
+  def run(args: List[String]): ZIO[InMemoryMain.Environment, Nothing, Int] =
     for {
-      env <- ZIO.environment[Main.Environment]
+      env <- ZIO.environment[InMemoryMain.Environment]
       map <- Ref.make(Map.empty[String, Foo])
       counter <- Ref.make(0L)
-      appEnvironment = createEnvironment(map, counter)
-      foos <- program.provideSome[Environment](appEnvironment)
+      foos <- program.provideSome(createEnvironment(map, counter))
       _ <- env.console.putStrLn(s"Failing result: ${foos._1.toString}")
       exitCode <- env.console
         .putStrLn(s"Successful result: ${foos._2.toString}")
@@ -50,7 +49,7 @@ object Main extends App {
     */
   private def createEnvironment(map: Ref[Map[String, Foo]],
                                 counter: Ref[Long]) = {
-    base: Main.Environment =>
+    base: InMemoryMain.Environment =>
       new AppEnvironment {
         override val console: Console.Service[Any] = base.console
         override val functionK: FunctionK[UIO, UIO] =

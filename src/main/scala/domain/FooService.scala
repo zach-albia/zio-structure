@@ -70,33 +70,41 @@ object FooService {
       : ZIO[S with EnvBound, E, Option[(Foo, Foo)]] =
       for {
         env <- ZIO.environment[EnvBound]
-        foosOpt <- ZIO
-          .sequence(
-            List(
-              env.functionK(env.fooRepository.fetch(fooId)),
-              env.functionK(env.fooRepository.fetch(otherId))
-            ))
-          .map(_.sequence)
-        resOpt = for {
-          foos <- foosOpt
-          fooPair <- pairFoos(foos)
-          mergeF = for {
-            foo <- env.fooRepository
-              .update(fooId, fooPair._1.name + " " + fooPair._2.name)
-            other <- env.fooRepository
-              .update(otherId, fooPair._2.name + " " + fooPair._1.name)
-          } yield List(foo, other)
-          res = env.functionK(env.transactor.transact(mergeF))
-        } yield res
-        result <- ZIO.sequence(resOpt)
-        mergedFoos = result.flatten.sequence.flatMap(pairFoos)
+        foosOpt <- findFoos(fooId, otherId)
+        mergeResult <- ZIO.sequence(doMergeFoos(env, foosOpt))
+        mergedFoos = mergeResult.flatten.sequence.flatMap(pairFoos)
       } yield mergedFoos
-  }
 
-  /** Pairs foos iff the list has two elements */
-  private def pairFoos(foos: List[Foo]) = {
-    if (foos.length == 2) {
-      Some((foos.head, foos.tail.head))
-    } else None
+    private def doMergeFoos(env: EnvBound, foosOpt: Option[List[Foo]])(
+        implicit MonadF: Monad[F]) = {
+      for {
+        foos <- foosOpt
+        fooPair <- pairFoos(foos)
+        mergeF = for {
+          foo <- env.fooRepository
+            .update(fooPair._1.id, fooPair._1.name + " " + fooPair._2.name)
+          other <- env.fooRepository
+            .update(fooPair._2.id, fooPair._2.name + " " + fooPair._1.name)
+        } yield List(foo, other)
+      } yield env.functionK(env.transactor.transact(mergeF))
+    }
+
+    private def findFoos(fooId: String, otherId: String) = {
+      for {
+        env <- ZIO.environment[EnvBound]
+        fetches = List(
+          env.functionK(env.fooRepository.fetch(fooId)),
+          env.functionK(env.fooRepository.fetch(otherId))
+        )
+        foos <- ZIO.sequence(fetches).map(_.sequence)
+      } yield foos
+    }
+
+    /** Pairs foos iff the list has two elements */
+    private def pairFoos(foos: List[Foo]) = {
+      if (foos.length == 2) {
+        Some((foos.head, foos.tail.head))
+      } else None
+    }
   }
 }
