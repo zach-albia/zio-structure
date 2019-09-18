@@ -17,14 +17,14 @@ object InMemoryMain extends App {
 
   def run(args: List[String]): ZIO[InMemoryMain.Environment, Nothing, Int] =
     for {
-      env <- ZIO.environment[InMemoryMain.Environment]
-      map <- Ref.make(Map.empty[String, Foo])
+      env     <- ZIO.environment[InMemoryMain.Environment]
+      map     <- Ref.make(Map.empty[String, Foo])
       counter <- Ref.make(0L)
-      foos <- program.provideSome(createEnvironment(map, counter))
-      _ <- env.console.putStrLn(s"Failing result: ${foos._1.toString}")
+      foos    <- program.provideSome(createEnvironment(map, counter))
+      _       <- env.console.putStrLn(s"Failing result: ${foos._1.toString}")
       exitCode <- env.console
-        .putStrLn(s"Successful result: ${foos._2.toString}")
-        .fold(_ => 1, _ => 0)
+                   .putStrLn(s"Successful result: ${foos._2.toString}")
+                   .fold(_ => 1, _ => 0)
 
     } yield exitCode
 
@@ -37,8 +37,8 @@ object InMemoryMain extends App {
     val fooService: FooService.Service[AppEnvironment, UIO, Any, Nothing] =
       new FooService.Service[AppEnvironment, UIO, Any, Nothing] {}
     for {
-      foo <- fooService.createFoo("foo")
-      bar <- fooService.createFoo(name = "bar")
+      foo     <- fooService.createFoo("foo")
+      bar     <- fooService.createFoo(name = "bar")
       failure <- fooService.mergeFoos("bogus ID", bar.id)
       success <- fooService.mergeFoos(foo.id, bar.id)
     } yield (failure, success)

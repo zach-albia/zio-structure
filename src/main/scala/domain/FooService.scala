@@ -69,23 +69,22 @@ object FooService {
     def mergeFoos(fooId: String, otherId: String)(implicit MonadF: Monad[F])
       : ZIO[S with EnvBound, E, Option[(Foo, Foo)]] =
       for {
-        env <- ZIO.environment[EnvBound]
-        foosOpt <- findFoos(fooId, otherId)
+        env         <- ZIO.environment[EnvBound]
+        foosOpt     <- findFoos(fooId, otherId)
         mergeResult <- ZIO.sequence(doMergeFoos(env, foosOpt))
-        mergedFoos = mergeResult.flatten.sequence.flatMap(pairFoos)
+        mergedFoos  = mergeResult.flatten.sequence.flatMap(pairFoos)
       } yield mergedFoos
 
     private def doMergeFoos(env: EnvBound, foosOpt: Option[List[Foo]])(
         implicit MonadF: Monad[F]) = {
       for {
-        foos <- foosOpt
-        fooPair <- pairFoos(foos)
+        foos         <- foosOpt
+        fooBar       <- pairFoos(foos)
+        (_1st, _2nd) = fooBar
         mergeF = for {
-          foo <- env.fooRepository
-            .update(fooPair._1.id, fooPair._1.name + " " + fooPair._2.name)
-          other <- env.fooRepository
-            .update(fooPair._2.id, fooPair._2.name + " " + fooPair._1.name)
-        } yield List(foo, other)
+          foo <- env.fooRepository.update(_1st.id, _1st.name + " " + _2nd.name)
+          bar <- env.fooRepository.update(_2nd.id, _2nd.name + " " + _1st.name)
+        } yield List(foo, bar)
       } yield env.functionK(env.transactor.transact(mergeF))
     }
 
