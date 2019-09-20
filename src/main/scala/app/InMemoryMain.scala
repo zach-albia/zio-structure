@@ -21,8 +21,8 @@ object InMemoryMain extends App {
       map          <- Ref.make(Map.empty[Int, Foo])
       counter      <- Ref.make(0)
       programUIO   = Program[AppEnvironment, UIO, Any, Nothing]
-      environment  = createEnvironment(map, counter)
-      result       <- programUIO.provideSome(environment)
+      appEnv       = createAppEnv(map, counter)
+      result       <- programUIO.provideSome(appEnv)
       (res1, res2) = result
       _            <- env.console.putStrLn(s"Failing result: ${res1.toString}")
       exitCode <- env.console
@@ -33,18 +33,18 @@ object InMemoryMain extends App {
   /**
     * Creates the whole object graph needed for the program to run.
     */
-  private def createEnvironment(map: Ref[Map[Int, Foo]], counter: Ref[Int]) = {
-    base: Environment =>
-      new AppEnvironment {
-        override val console: Console.Service[Any] = base.console
-        override val functionK: FunctionK[UIO, UIO] =
-          new FunctionK[UIO, UIO] {
-            override def apply[A](fa: UIO[A]): UIO[A] = fa
-          }
-        override val fooRepository =
-          FooRepository.InMemoryFooRepository(map, counter)
-        override val transactor: Transactor.Service[UIO] =
-          Transactor.InMemoryTransactor()
-      }
+  private def createAppEnv(map: Ref[Map[Int, Foo]],
+                                   counter: Ref[Int]) = { base: Environment =>
+    new AppEnvironment {
+      override val console: Console.Service[Any] = base.console
+      override val functionK: FunctionK[UIO, UIO] =
+        new FunctionK[UIO, UIO] {
+          override def apply[A](fa: UIO[A]): UIO[A] = fa
+        }
+      override val fooRepository =
+        FooRepository.InMemoryFooRepository(map, counter)
+      override val transactor: Transactor.Service[UIO] =
+        Transactor.InMemoryTransactor()
+    }
   }
 }
