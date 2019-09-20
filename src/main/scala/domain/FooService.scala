@@ -40,18 +40,15 @@ object FooService {
     */
   trait Service[R <: Environment[F, S, E], F[_], S, E] {
 
-    // just for convenience
-    type EnvBound = Environment[F, S, E]
-
     /**
       * Creates a foo given its name
       *
       * @param name The name of the `Foo`
       * @return The newly created `Foo`
       */
-    def createFoo(name: String): ZIO[S with EnvBound, E, Foo] =
+    def createFoo(name: String): ZIO[S with Environment[F, S, E], E, Foo] =
       for {
-        env <- ZIO.environment[EnvBound]
+        env <- ZIO.environment[Environment[F, S, E]]
         foo <- env.functionK(env.fooRepository.create(name))
       } yield foo
 
@@ -67,15 +64,15 @@ object FooService {
       * @return The merged `Foo`s as an optional pair
       */
     def mergeFoos(fooId: String, otherId: String)(implicit MonadF: Monad[F])
-      : ZIO[S with EnvBound, E, Option[(Foo, Foo)]] =
+      : ZIO[S with Environment[F, S, E], E, Option[(Foo, Foo)]] =
       for {
-        env         <- ZIO.environment[EnvBound]
+        env         <- ZIO.environment[Environment[F, S, E]]
         foosOpt     <- findFoos(fooId, otherId)
         mergeResult <- ZIO.sequence(doMergeFoos(env, foosOpt))
         mergedFoos  = mergeResult.flatten.sequence.flatMap(pairFoos)
       } yield mergedFoos
 
-    private def doMergeFoos(env: EnvBound, foosOpt: Option[List[Foo]])(
+    private def doMergeFoos(env: Environment[F, S, E], foosOpt: Option[List[Foo]])(
         implicit MonadF: Monad[F]) = {
       for {
         foos         <- foosOpt
@@ -90,7 +87,7 @@ object FooService {
 
     private def findFoos(fooId: String, otherId: String) = {
       for {
-        env <- ZIO.environment[EnvBound]
+        env <- ZIO.environment[Environment[F, S, E]]
         fetches = List(
           env.functionK(env.fooRepository.fetch(fooId)),
           env.functionK(env.fooRepository.fetch(otherId))

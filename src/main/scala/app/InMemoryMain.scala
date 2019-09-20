@@ -1,10 +1,13 @@
 package app
 
+import cats.Monad
 import cats.arrow.FunctionK
 import domain._
 import zio._
 import zio.console.Console
 import zio.interop.catz._
+
+import scala.language.higherKinds
 
 object InMemoryMain extends App {
 
@@ -15,17 +18,19 @@ object InMemoryMain extends App {
       with HasFunctionK[UIO, UIO]
       with Transactor[UIO]
 
-  def run(args: List[String]): ZIO[InMemoryMain.Environment, Nothing, Int] =
+  def run(args: List[String]): ZIO[Environment, Nothing, Int] =
     for {
-      env     <- ZIO.environment[InMemoryMain.Environment]
-      map     <- Ref.make(Map.empty[String, Foo])
-      counter <- Ref.make(0L)
-      foos    <- program.provideSome(createEnvironment(map, counter))
-      _       <- env.console.putStrLn(s"Failing result: ${foos._1.toString}")
+      env          <- ZIO.environment[Environment]
+      map          <- Ref.make(Map.empty[String, Foo])
+      counter      <- Ref.make(0L)
+      programUIO   = program[AppEnvironment, UIO, Any, Nothing]
+      environment  = createEnvironment(map, counter)
+      result       <- programUIO.provideSome(environment)
+      (res1, res2) = result
+      _            <- env.console.putStrLn(s"Failing result: ${res1.toString}")
       exitCode <- env.console
-                   .putStrLn(s"Successful result: ${foos._2.toString}")
+                   .putStrLn(s"Successful result: ${res2.toString}")
                    .fold(_ => 1, _ => 0)
-
     } yield exitCode
 
   /**
@@ -33,9 +38,9 @@ object InMemoryMain extends App {
     *
     * @return
     */
-  private def program = {
-    val fooService: FooService.Service[AppEnvironment, UIO, Any, Nothing] =
-      new FooService.Service[AppEnvironment, UIO, Any, Nothing] {}
+  private def program[R, F[_], S, E](implicit F: Monad[F]) = {
+    val fooService: FooService.Service[R, F, S, E] =
+      new FooService.Service[R, F, S, E] {}
     for {
       foo     <- fooService.createFoo("foo")
       bar     <- fooService.createFoo(name = "bar")
