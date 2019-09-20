@@ -1,13 +1,10 @@
 package app
 
-import cats.Monad
 import cats.arrow.FunctionK
 import domain._
 import zio._
 import zio.console.Console
 import zio.interop.catz._
-
-import scala.language.higherKinds
 
 object InMemoryMain extends App {
 
@@ -23,7 +20,7 @@ object InMemoryMain extends App {
       env          <- ZIO.environment[Environment]
       map          <- Ref.make(Map.empty[String, Foo])
       counter      <- Ref.make(0L)
-      programUIO   = program[AppEnvironment, UIO, Any, Nothing]
+      programUIO   = Program.program[AppEnvironment, UIO, Any, Nothing]
       environment  = createEnvironment(map, counter)
       result       <- programUIO.provideSome(environment)
       (res1, res2) = result
@@ -34,38 +31,21 @@ object InMemoryMain extends App {
     } yield exitCode
 
   /**
-    * This is the whole program. It test-runs a failure and a success case.
-    *
-    * @return
-    */
-  private def program[R, F[_], S, E](implicit F: Monad[F]) = {
-    val fooService: FooService.Service[R, F, S, E] =
-      new FooService.Service[R, F, S, E] {}
-    for {
-      foo     <- fooService.createFoo("foo")
-      bar     <- fooService.createFoo(name = "bar")
-      failure <- fooService.mergeFoos("bogus ID", bar.id)
-      success <- fooService.mergeFoos(foo.id, bar.id)
-    } yield (failure, success)
-  }
-
-  /**
     * Creates the whole object graph needed for the program to run.
     */
   private def createEnvironment(map: Ref[Map[String, Foo]],
-                                counter: Ref[Long]) = {
-    base: InMemoryMain.Environment =>
-      new AppEnvironment {
-        override val console: Console.Service[Any] = base.console
-        override val functionK: FunctionK[UIO, UIO] =
-          new FunctionK[UIO, UIO] {
-            override def apply[A](fa: UIO[A]): UIO[A] = fa
-          }
-        override val fooRepository =
-          FooRepository.InMemoryFooRepository(map, counter)
-        override val transactor: Transactor.Service[UIO] =
-          Transactor.InMemoryTransactor()
-      }
+                                counter: Ref[Long]) = { base: Environment =>
+    new AppEnvironment {
+      override val console: Console.Service[Any] = base.console
+      override val functionK: FunctionK[UIO, UIO] =
+        new FunctionK[UIO, UIO] {
+          override def apply[A](fa: UIO[A]): UIO[A] = fa
+        }
+      override val fooRepository =
+        FooRepository.InMemoryFooRepository(map, counter)
+      override val transactor: Transactor.Service[UIO] =
+        Transactor.InMemoryTransactor()
+    }
 
   }
 }
