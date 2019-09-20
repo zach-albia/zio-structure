@@ -63,7 +63,7 @@ object FooService {
       *               repository effect type `F`.
       * @return The merged `Foo`s as an optional pair
       */
-    def mergeFoos(fooId: String, otherId: String)(implicit MonadF: Monad[F])
+    def mergeFoos(fooId: Int, otherId: Int)(implicit MonadF: Monad[F])
       : ZIO[S with Environment[F, S, E], E, Option[(Foo, Foo)]] =
       for {
         env         <- ZIO.environment[Environment[F, S, E]]
@@ -72,8 +72,9 @@ object FooService {
         mergedFoos  = mergeResult.flatten.sequence.flatMap(pairFoos)
       } yield mergedFoos
 
-    private def doMergeFoos(env: Environment[F, S, E], foosOpt: Option[List[Foo]])(
-        implicit MonadF: Monad[F]) = {
+    private def doMergeFoos(
+        env: Environment[F, S, E],
+        foosOpt: Option[List[Foo]])(implicit MonadF: Monad[F]) = {
       for {
         foos         <- foosOpt
         fooBar       <- pairFoos(foos)
@@ -85,7 +86,7 @@ object FooService {
       } yield env.functionK(env.transactor.transact(mergeF))
     }
 
-    private def findFoos(fooId: String, otherId: String) = {
+    private def findFoos(fooId: Int, otherId: Int) = {
       for {
         env <- ZIO.environment[Environment[F, S, E]]
         fetches = List(

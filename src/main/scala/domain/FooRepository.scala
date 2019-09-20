@@ -31,40 +31,40 @@ object FooRepository {
 
     def create(name: String): F[Foo]
 
-    def fetch(id: String): F[Option[Foo]]
+    def fetch(id: Int): F[Option[Foo]]
 
-    def update(id: String, name: String): F[Option[Foo]]
+    def update(id: Int, name: String): F[Option[Foo]]
 
-    def delete(id: String): F[Unit]
+    def delete(id: Int): F[Unit]
   }
 
   /**
     * Sample in-memory implementation
     */
   final case class InMemoryFooRepository(
-      ref: Ref[Map[String, Foo]],
-      counter: Ref[Long]
+      ref: Ref[Map[Int, Foo]],
+      counter: Ref[Int]
   ) extends Service[UIO] {
 
     override def create(name: String): UIO[Foo] =
       for {
-        newId <- counter.update(_ + 1).map(_.toString)
-        foo = Foo(newId, name)
-        _ <- ref.update(store => store + (newId -> foo))
+        newId <- counter.update(_ + 1)
+        foo   = Foo(newId, name)
+        _     <- ref.update(store => store + (newId -> foo))
       } yield foo
 
-    override def fetch(id: String): UIO[Option[Foo]] =
+    override def fetch(id: Int): UIO[Option[Foo]] =
       ref.get.map(_.get(id))
 
-    override def update(id: String, name: String): UIO[Option[Foo]] =
+    override def update(id: Int, name: String): UIO[Option[Foo]] =
       for {
         updatedFooOpt <- ref.get.map(_.get(id).map(_ => Foo(id, name)))
         _ <- updatedFooOpt
-          .map(foo => ref.update(store => store + (id -> foo)))
-          .getOrElse(UIO.unit)
+              .map(foo => ref.update(store => store + (id -> foo)))
+              .getOrElse(UIO.unit)
       } yield updatedFooOpt
 
-    override def delete(id: String): UIO[Unit] =
+    override def delete(id: Int): UIO[Unit] =
       ref.update(_ - id).unit
   }
 

@@ -22,7 +22,7 @@ object Program {
     for {
       foo     <- fooService.createFoo("foo")
       bar     <- fooService.createFoo(name = "bar")
-      failure <- fooService.mergeFoos("bogus ID", bar.id)
+      failure <- fooService.mergeFoos(42069, bar.id)
       success <- fooService.mergeFoos(foo.id, bar.id)
     } yield (failure, success)
   }

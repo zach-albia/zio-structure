@@ -18,8 +18,8 @@ object InMemoryMain extends App {
   def run(args: List[String]): ZIO[Environment, Nothing, Int] =
     for {
       env          <- ZIO.environment[Environment]
-      map          <- Ref.make(Map.empty[String, Foo])
-      counter      <- Ref.make(0L)
+      map          <- Ref.make(Map.empty[Int, Foo])
+      counter      <- Ref.make(0)
       programUIO   = Program[AppEnvironment, UIO, Any, Nothing]
       environment  = createEnvironment(map, counter)
       result       <- programUIO.provideSome(environment)
@@ -33,19 +33,18 @@ object InMemoryMain extends App {
   /**
     * Creates the whole object graph needed for the program to run.
     */
-  private def createEnvironment(map: Ref[Map[String, Foo]],
-                                counter: Ref[Long]) = { base: Environment =>
-    new AppEnvironment {
-      override val console: Console.Service[Any] = base.console
-      override val functionK: FunctionK[UIO, UIO] =
-        new FunctionK[UIO, UIO] {
-          override def apply[A](fa: UIO[A]): UIO[A] = fa
-        }
-      override val fooRepository =
-        FooRepository.InMemoryFooRepository(map, counter)
-      override val transactor: Transactor.Service[UIO] =
-        Transactor.InMemoryTransactor()
-    }
-
+  private def createEnvironment(map: Ref[Map[Int, Foo]], counter: Ref[Int]) = {
+    base: Environment =>
+      new AppEnvironment {
+        override val console: Console.Service[Any] = base.console
+        override val functionK: FunctionK[UIO, UIO] =
+          new FunctionK[UIO, UIO] {
+            override def apply[A](fa: UIO[A]): UIO[A] = fa
+          }
+        override val fooRepository =
+          FooRepository.InMemoryFooRepository(map, counter)
+        override val transactor: Transactor.Service[UIO] =
+          Transactor.InMemoryTransactor()
+      }
   }
 }
