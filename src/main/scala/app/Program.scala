@@ -16,7 +16,7 @@ object Program {
     *
     * @return
     */
-  def program[R <: FooService.Environment[F, S, E], F[_], S, E](
+  def apply[R <: FooService.Environment[F, S, E], F[_], S, E]()(
       implicit F: Monad[F]): ZIO[S with Environment[F, S, E], E, Result] = {
     val fooService = new FooService.Service[R, F, S, E] {}
     for {

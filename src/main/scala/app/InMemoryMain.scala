@@ -20,7 +20,7 @@ object InMemoryMain extends App {
       env          <- ZIO.environment[Environment]
       map          <- Ref.make(Map.empty[String, Foo])
       counter      <- Ref.make(0L)
-      programUIO   = Program.program[AppEnvironment, UIO, Any, Nothing]
+      programUIO   = Program[AppEnvironment, UIO, Any, Nothing]
       environment  = createEnvironment(map, counter)
       result       <- programUIO.provideSome(environment)
       (res1, res2) = result
