@@ -22,26 +22,18 @@ object SlickMain extends App {
 
   override def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
     (for {
-      env          <- ZIO.environment[Environment]
+      _            <- ZIO.environment[Environment]
       program      = Program[AppEnvironment, DBIO, SlickDatabase, Throwable]
       h2db         = Database.forConfig("h2mem1")
       appEnv       = createAppEnv(h2db)
       _            <- SlickZIO(Foos.foos.schema.create).provideSome(appEnv)
       result       <- program.provideSome(appEnv)
       (res1, res2) = result
-      _            <- env.console.putStrLn(s"Failing result: ${res1.toString}")
-      exitCode <- env.console
-                   .putStrLn(s"Successful result: ${res2.toString}")
-    } yield exitCode).foldM(
-      err =>
-        putStrLn(
-          s"Execution failed with: $err\nStack " +
-            s"trace:\n${err.getStackTrace
-              .map(_.toString)
-              .mkString("\n")}")
-          *> ZIO.succeed(1),
-      _ => ZIO.succeed(0)
-    )
+      failureMsg   = s"Failing result: ${res1.toString}"
+      _            <- console.putStrLn(failureMsg)
+      successMsg   = s"Successful result: ${res2.toString}"
+      exitCode     <- console.putStrLn(successMsg)
+    } yield exitCode).foldM(printError, _ => ZIO.succeed(0))
   }
 
   private def createAppEnv(db: H2Profile.backend.Database) = {
@@ -57,4 +49,10 @@ object SlickMain extends App {
       }
   }
 
+  private def printError(err: Throwable) =
+    putStrLn(
+      s"Execution failed with: $err\nStack " +
+        s"trace:\n${err.getStackTrace
+          .map(_.toString)
+          .mkString("\n")}") *> ZIO.succeed(1)
 }

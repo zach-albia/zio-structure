@@ -24,27 +24,27 @@ object InMemoryMain extends App {
       appEnv       = createAppEnv(map, counter)
       result       <- programUIO.provideSome(appEnv)
       (res1, res2) = result
-      _            <- env.console.putStrLn(s"Failing result: ${res1.toString}")
-      exitCode <- env.console
-                   .putStrLn(s"Successful result: ${res2.toString}")
-                   .fold(_ => 1, _ => 0)
+      failureMsg   = s"Failing result: ${res1.toString}"
+      _            <- env.console.putStrLn(failureMsg)
+      successMsg   = s"Successful result: ${res2.toString}"
+      exitCode     <- env.console.putStrLn(successMsg).fold(_ => 1, _ => 0)
     } yield exitCode
 
   /**
     * Creates the whole object graph needed for the program to run.
     */
-  private def createAppEnv(map: Ref[Map[Int, Foo]],
-                                   counter: Ref[Int]) = { base: Environment =>
-    new AppEnvironment {
-      override val console: Console.Service[Any] = base.console
-      override val functionK: FunctionK[UIO, UIO] =
-        new FunctionK[UIO, UIO] {
-          override def apply[A](fa: UIO[A]): UIO[A] = fa
-        }
-      override val fooRepository =
-        FooRepository.InMemoryFooRepository(map, counter)
-      override val transactor: Transactor.Service[UIO] =
-        Transactor.InMemoryTransactor()
-    }
+  private def createAppEnv(map: Ref[Map[Int, Foo]], counter: Ref[Int]) = {
+    base: Environment =>
+      new AppEnvironment {
+        override val console: Console.Service[Any] = base.console
+        override val functionK: FunctionK[UIO, UIO] =
+          new FunctionK[UIO, UIO] {
+            override def apply[A](fa: UIO[A]): UIO[A] = fa
+          }
+        override val fooRepository =
+          FooRepository.InMemoryFooRepository(map, counter)
+        override val transactor: Transactor.Service[UIO] =
+          Transactor.InMemoryTransactor()
+      }
   }
 }
