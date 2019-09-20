@@ -5,6 +5,7 @@ version := "0.1"
 scalaVersion := "2.12.10"
 
 libraryDependencies ++= Seq(
+  "com.h2database"     % "h2"                % "1.4.187",
   "com.rms.miu"        %% "slick-cats"       % "0.9.1",
   "com.typesafe.slick" %% "slick"            % "3.3.0",
   "dev.zio"            %% "zio"              % "1.0.0-RC12-1",
