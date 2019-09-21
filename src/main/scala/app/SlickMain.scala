@@ -39,8 +39,7 @@ object SlickMain extends App {
   private def createAppEnv(db: H2Profile.backend.Database) = {
     base: Environment =>
       new AppEnvironment {
-        val transactor: Transactor.Service[DBIO] =
-          SlickTransactor
+        val transactor: Transactor.Service[DBIO] = SlickTransactor
         val console: Console.Service[Any]        = base.console
         val functionK: FunctionK[DBIO, SlickZIO] = SlickFunctionK
         val database: H2Profile.backend.Database = db
