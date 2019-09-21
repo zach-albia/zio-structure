@@ -12,9 +12,8 @@ case class FooRepositorySlick(implicit ec: ExecutionContext)
   import FooRepositorySlick._
 
   def create(name: String): DBIO[Foo] =
-    for {
-      id <- (foos returning foos.map(_.id)) += Foo(IGNORED_PLACEHOLDER, name)
-    } yield Foo(id, name)
+    ((foos returning foos.map(_.id)) += Foo(IGNORED_PLACEHOLDER, name))
+      .map(Foo(_, name))
 
   override def fetch(id: Int): DBIO[Option[Foo]] =
     foos.filter(_.id === id).result.headOption

@@ -23,9 +23,9 @@ object SlickMain extends App {
   override def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
     (for {
       _            <- ZIO.environment[Environment]
-      program      = Program[AppEnvironment, DBIO, SlickDatabase, Throwable]
       h2db         = Database.forConfig("h2mem1")
       appEnv       = createAppEnv(h2db)
+      program      = Program[AppEnvironment, DBIO, SlickDatabase, Throwable]
       _            <- SlickZIO(Foos.foos.schema.create).provideSome(appEnv)
       result       <- program.provideSome(appEnv)
       (res1, res2) = result
