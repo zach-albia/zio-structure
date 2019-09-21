@@ -3,7 +3,7 @@ package app
 import cats.arrow.FunctionK
 import com.rms.miu.slickcats.DBIOInstances._
 import domain.{FooRepository, HasFunctionK, Transactor}
-import persistence._
+import persistence.slick_._
 import slick.jdbc.H2Profile
 import slick.jdbc.H2Profile.api._
 import zio._

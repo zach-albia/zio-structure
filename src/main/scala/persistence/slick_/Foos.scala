@@ -1,4 +1,4 @@
-package persistence
+package persistence.slick_
 
 import domain.Foo
 import slick.jdbc.H2Profile.api._

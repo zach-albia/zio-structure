@@ -1,11 +1,10 @@
+package persistence
+
 import slick.basic.BasicBackend
 import slick.dbio.DBIO
 import zio.ZIO
 
-import scala.language.implicitConversions
-
-// copied from https://github.com/rleibman/zio-slick/
-package object persistence {
+package object slick_ {
   trait SlickDatabase {
     val database: BasicBackend#DatabaseDef
   }

@@ -1,7 +1,7 @@
-package persistence
+package persistence.slick_
 
 import domain.{Foo, FooRepository}
-import persistence.Foos.foos
+import persistence.slick_.Foos.foos
 import slick.jdbc.H2Profile.api._
 
 import scala.concurrent.ExecutionContext

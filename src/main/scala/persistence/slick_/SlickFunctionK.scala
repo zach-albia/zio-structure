@@ -1,4 +1,4 @@
-package persistence
+package persistence.slick_
 
 import cats.arrow.FunctionK
 import slick.jdbc.H2Profile.api._
