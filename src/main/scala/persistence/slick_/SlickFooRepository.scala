@@ -6,10 +6,10 @@ import slick.jdbc.H2Profile.api._
 
 import scala.concurrent.ExecutionContext
 
-case class FooRepositorySlick(implicit ec: ExecutionContext)
+case class SlickFooRepository(implicit ec: ExecutionContext)
     extends FooRepository.Service[DBIO] {
 
-  import FooRepositorySlick._
+  import SlickFooRepository._
 
   def create(name: String): DBIO[Foo] =
     ((foos returning foos.map(_.id)) += Foo(IGNORED_PLACEHOLDER, name))
@@ -30,6 +30,6 @@ case class FooRepositorySlick(implicit ec: ExecutionContext)
     foos.filter(_.id === id).delete.map(_ => ())
 }
 
-object FooRepositorySlick {
+object SlickFooRepository {
   val IGNORED_PLACEHOLDER = 42069
 }

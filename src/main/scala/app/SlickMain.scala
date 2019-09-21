@@ -45,7 +45,7 @@ object SlickMain extends App {
         val functionK: FunctionK[DBIO, SlickZIO] = SlickFunctionK
         val database: H2Profile.backend.Database = db
         val fooRepository: FooRepository.Service[DBIO] =
-          FooRepositorySlick()
+          SlickFooRepository()
       }
   }
 
