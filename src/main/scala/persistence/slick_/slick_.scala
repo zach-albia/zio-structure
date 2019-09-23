@@ -4,6 +4,8 @@ import slick.basic.BasicBackend
 import slick.dbio.DBIO
 import zio.ZIO
 
+import scala.language.implicitConversions
+
 package object slick_ {
   trait SlickDatabase {
     val database: BasicBackend#DatabaseDef
