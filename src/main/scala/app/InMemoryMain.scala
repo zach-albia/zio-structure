@@ -28,15 +28,11 @@ object InMemoryMain extends App {
   private def createAppEnv(map: Ref[Map[Int, Foo]], counter: Ref[Int]) = {
     _: Environment =>
       new Program.Environment[UIO] {
-        val transact: Transactor.Service[UIO] = Transactor
-          .InMemoryTransactor()
-        val functionK: FunctionK[UIO, UIO] = new FunctionK[UIO, UIO] {
-          override def apply[A](fa: UIO[A]): UIO[A] = fa
+        val transact = Transactor.InMemoryTransactor()
+        val functionK = new FunctionK[UIO, UIO] {
+          def apply[A](fa: UIO[A]): UIO[A] = fa
         }
-
-        /** Environment member */
-        val fooRepository: FooRepository.Service[UIO] = FooRepository
-          .InMemoryFooRepository(map, counter)
+        val fooRepository = FooRepository.InMemoryFooRepository(map, counter)
       }
   }
 }
