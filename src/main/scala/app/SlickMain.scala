@@ -17,8 +17,7 @@ object SlickMain extends App {
       h2db         = Database.forConfig("h2mem1")
       appEnv       = createAppEnv(h2db)
       program      = Program[DBIO]
-      dbEnv        = (_: Environment) => new SlickDatabase { val database = h2db }
-      _            <- SlickZIO(Foos.foos.schema.create).provideSome(dbEnv)
+      _            <- SlickZIO(Foos.foos.schema.create).provideSome(appEnv)
       result       <- program.provideSome(appEnv)
       (res1, res2) = result
       failureMsg   = s"Failing result: ${res1.toString}"
@@ -28,11 +27,12 @@ object SlickMain extends App {
     } yield exitCode).foldM(printError, _ => ZIO.succeed(0))
   }
 
-  private def createAppEnv(database: H2Profile.backend.Database)
-    : Environment => Program.Environment[DBIO] = { _: Environment =>
-    new Program.Environment[DBIO] {
+  private def createAppEnv(h2db: H2Profile.backend.Database)
+    : Environment => Program.Environment[DBIO] with SlickDatabase = { _ =>
+    new Program.Environment[DBIO] with SlickDatabase {
+      val database      = h2db
       val transact      = SlickTransactor
-      val functionK     = new SlickFunctionK { val db = database }
+      val functionK     = new SlickFunctionK { val db = h2db }
       val fooRepository = SlickFooRepository()
     }
   }
