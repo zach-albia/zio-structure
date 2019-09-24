@@ -1,10 +1,11 @@
 package domain
 
 import cats.Monad
+import cats.arrow.FunctionK
 import cats.implicits._
 import zio.ZIO
 
-import scala.language.higherKinds
+import scala.language.{higherKinds, implicitConversions}
 
 /**
   * If I'm understanding the ZIO program structure convention correctly,
@@ -15,30 +16,18 @@ import scala.language.higherKinds
 object FooService {
 
   /**
-    * The FooService environment type. It consists of the `FooRepository`,
-    * `HasFunctionK` to transform an `F[_]` to a `ZIO[S, E, *]`, and a
-    * `Transactor` to add transaction support to the F effect.
-    *
-    * @tparam F repository effect type
-    * @tparam S repository environment type
-    * @tparam E repository error type
-    */
-  type Environment[F[_], S, E] = FooRepository[F]
-    with HasFunctionK[F, ZIO[S, E, *]]
-    with Transactor[F]
-
-  /**
     * Provides methods that implement our example use cases for our `Foo` data
     * type. `createFoo` is a basic example of how to use a repository and
     * `mergeFoos` is a more complex example that makes the "merging of `Foo`s"
     * transactional.
     *
-    * @tparam R global environment type bounded to this service's environment
     * @tparam F repository effect type
-    * @tparam S repository environment type
-    * @tparam E repository error type
     */
-  trait Service[R <: Environment[F, S, E], F[_], S, E] {
+  trait Service[F[_]] {
+
+    val fooRepository: FooRepository.Service[F]
+    val toZIO: FunctionK[F, ZIO[Any, Nothing, *]]
+    val transact: Transactor.Service[F]
 
     /**
       * Creates a foo given its name
@@ -46,11 +35,8 @@ object FooService {
       * @param name The name of the `Foo`
       * @return The newly created `Foo`
       */
-    def createFoo(name: String): ZIO[S with Environment[F, S, E], E, Foo] =
-      for {
-        env <- ZIO.environment[Environment[F, S, E]]
-        foo <- env.functionK(env.fooRepository.create(name))
-      } yield foo
+    def createFoo(name: String): ZIO[Any, Nothing, Foo] =
+      toZIO(fooRepository.create(name))
 
     /**
       * Merges the names of two `Foo` instances identified by their IDs. Merging
@@ -63,36 +49,33 @@ object FooService {
       *               repository effect type `F`.
       * @return The merged `Foo`s as an optional pair
       */
-    def mergeFoos(fooId: Int, otherId: Int)(implicit MonadF: Monad[F])
-      : ZIO[S with Environment[F, S, E], E, Option[(Foo, Foo)]] =
+    def mergeFoos(fooId: Int, otherId: Int)(
+        implicit MonadF: Monad[F]): ZIO[Any, Nothing, Option[(Foo, Foo)]] =
       for {
-        env         <- ZIO.environment[Environment[F, S, E]]
         foosOpt     <- findFoos(fooId, otherId)
-        mergeResult <- ZIO.sequence(doMergeFoos(env, foosOpt))
+        mergeResult <- ZIO.sequence(doMergeFoos(foosOpt))
         mergedFoos  = mergeResult.flatten.sequence.flatMap(pairFoos)
       } yield mergedFoos
 
-    private def doMergeFoos(
-        env: Environment[F, S, E],
-        foosOpt: Option[List[Foo]])(implicit MonadF: Monad[F]) = {
+    private def doMergeFoos(foosOpt: Option[List[Foo]])(
+        implicit MonadF: Monad[F]) = {
       for {
         foos         <- foosOpt
         fooBar       <- pairFoos(foos)
         (_1st, _2nd) = fooBar
         mergeF = for {
-          foo <- env.fooRepository.update(_1st.id, _1st.name + " " + _2nd.name)
-          bar <- env.fooRepository.update(_2nd.id, _2nd.name + " " + _1st.name)
+          foo <- fooRepository.update(_1st.id, _1st.name + " " + _2nd.name)
+          bar <- fooRepository.update(_2nd.id, _2nd.name + " " + _1st.name)
         } yield List(foo, bar)
-      } yield env.functionK(env.transactor.transact(mergeF))
+      } yield toZIO(transact(mergeF))
     }
 
     private def findFoos(fooId: Int, otherId: Int) = {
+      val fetches = List(
+        fooRepository.fetch(fooId),
+        fooRepository.fetch(otherId)
+      ).map(toZIO(_))
       for {
-        env <- ZIO.environment[Environment[F, S, E]]
-        fetches = List(
-          env.functionK(env.fooRepository.fetch(fooId)),
-          env.functionK(env.fooRepository.fetch(otherId))
-        )
         foos <- ZIO.sequence(fetches).map(_.sequence)
       } yield foos
     }
