@@ -75,9 +75,7 @@ object FooService {
         fooRepository.fetch(fooId),
         fooRepository.fetch(otherId)
       ).map(toZIO(_))
-      for {
-        foos <- ZIO.sequence(fetches).map(_.sequence)
-      } yield foos
+      ZIO.sequence(fetches).map(_.sequence)
     }
 
     /** Pairs foos iff the list has two elements */
