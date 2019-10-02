@@ -42,30 +42,30 @@ object FooRepository {
     * Sample in-memory implementation
     */
   final case class InMemoryFooRepository(
-      ref: Ref[Map[Int, Foo]],
-      counter: Ref[Int]
+      mapTable: Ref[Map[Int, Foo]],
+      idSequence: Ref[Int]
   ) extends Service[UIO] {
 
     override def create(name: String): UIO[Foo] =
       for {
-        newId <- counter.update(_ + 1)
+        newId <- idSequence.update(_ + 1)
         foo   = Foo(newId, name)
-        _     <- ref.update(store => store + (newId -> foo))
+        _     <- mapTable.update(store => store + (newId -> foo))
       } yield foo
 
     override def fetch(id: Int): UIO[Option[Foo]] =
-      ref.get.map(_.get(id))
+      mapTable.get.map(_.get(id))
 
     override def update(id: Int, name: String): UIO[Option[Foo]] =
       for {
-        updatedFooOpt <- ref.get.map(_.get(id).map(_ => Foo(id, name)))
+        updatedFooOpt <- mapTable.get.map(_.get(id).map(_ => Foo(id, name)))
         _ <- updatedFooOpt
-              .map(foo => ref.update(store => store + (id -> foo)))
+              .map(foo => mapTable.update(store => store + (id -> foo)))
               .getOrElse(UIO.unit)
       } yield updatedFooOpt
 
     override def delete(id: Int): UIO[Unit] =
-      ref.update(_ - id).unit
+      mapTable.update(_ - id).unit
   }
 
 }

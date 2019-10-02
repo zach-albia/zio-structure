@@ -10,16 +10,19 @@ object InMemoryMain extends App {
 
   def run(args: List[String]): ZIO[Environment, Nothing, Int] =
     for {
-      map          <- Ref.make(Map.empty[Int, Foo])
-      counter      <- Ref.make(0)
-      programUIO   = Program[UIO]
-      appEnv       = createAppEnv(map, counter)
-      result       <- programUIO.provideSome(appEnv)
-      (res1, res2) = result
-      failureMsg   = s"Failing result: ${res1.toString}"
-      _            <- putStrLn(failureMsg)
-      successMsg   = s"Successful result: ${res2.toString}"
-      exitCode     <- putStrLn(successMsg).fold(_ => 1, _ => 0)
+      map                <- Ref.make(Map.empty[Int, Foo])
+      counter            <- Ref.make(0)
+      programUIO         = Program[UIO]
+      appEnv             = createAppEnv(map, counter)
+      result             <- programUIO.provideSome(appEnv)
+      (failure, success) = result
+      failureMsg = s"Failing result: ${failure.toString}\n(failure to " +
+        "merge means nothing is merged so a \"None\" is expected)"
+      _ <- putStrLn(failureMsg)
+      successMsg = s"Successful result: ${success.toString} \n(displays " +
+        "foos with IDs 1 and 2, along with their merged names \"foo bar\"" +
+        "and \"bar foo\""
+      exitCode <- putStrLn(successMsg).fold(_ => 1, _ => 0)
     } yield exitCode
 
   /**
