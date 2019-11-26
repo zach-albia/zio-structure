@@ -67,5 +67,4 @@ object FooRepository {
     override def delete(id: Int): UIO[Unit] =
       mapTable.update(_ - id).unit
   }
-
 }

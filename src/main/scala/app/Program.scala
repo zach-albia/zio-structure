@@ -1,19 +1,14 @@
 package app
 
-import cats.Monad
-import cats.arrow.FunctionK
 import domain._
-import zio.{UIO, ZIO}
+import zio.ZIO
 
 import scala.language.higherKinds
 
 object Program {
 
   /** These are all this program's environment members in one trait */
-  trait Environment[F[_]]
-      extends FooRepository[F]
-      with HasFunctionK[F, ZIO[Any, Nothing, *]]
-      with Transactor[F]
+  type Env = FooService
 
   type Result = (Option[(Foo, Foo)], Option[(Foo, Foo)])
 
@@ -22,19 +17,13 @@ object Program {
     *
     * @return
     */
-  def apply[F[_]]()(
-      implicit F: Monad[F]): ZIO[Environment[F], Nothing, Result] = {
+  def apply(): ZIO[Env, Nothing, Result] = {
     for {
-      env <- ZIO.environment[Environment[F]]
-      fooService = new FooService.Service[F] {
-        val fooRepository: FooRepository.Service[F] = env.fooRepository
-        val toZIO: FunctionK[F, UIO]                = env.functionK
-        val transact: Transactor.Service[F]         = env.transact
-      }
-      foo     <- fooService.createFoo("foo")
-      bar     <- fooService.createFoo(name = "bar")
-      failure <- fooService.mergeFoos(42069, bar.id)
-      success <- fooService.mergeFoos(foo.id, bar.id)
+      fooService <- ZIO.access[Env](_.fooService)
+      foo        <- fooService.createFoo("foo")
+      bar        <- fooService.createFoo(name = "bar")
+      failure    <- fooService.mergeFoos(42069, bar.id)
+      success    <- fooService.mergeFoos(foo.id, bar.id)
     } yield (failure, success)
   }
 }

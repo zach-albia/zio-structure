@@ -26,8 +26,8 @@ package object slick_ {
 
     def apply[T](action: DBIO[T]): SlickZIO[T] = {
       for {
-        env <- ZIO.environment[SlickDatabase]
-        res <- ZIO.fromFuture(implicit ec => env.database.run(action))
+        database <- ZIO.access[SlickDatabase](_.database)
+        res <- ZIO.fromFuture(implicit ec => database.run(action))
       } yield res
     }
   }

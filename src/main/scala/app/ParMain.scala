@@ -3,11 +3,11 @@ package app
 import zio.clock.nanoTime
 import zio.console.putStrLn
 import zio.stream._
-import zio.{ZIO, App}
+import zio.{Runtime => _, _}
 
 object ParMain extends App {
 
-  override def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
+  override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val topNum      = 360000000L
     val concurrency = Runtime.getRuntime.availableProcessors()
     val segmentSize = topNum / concurrency
