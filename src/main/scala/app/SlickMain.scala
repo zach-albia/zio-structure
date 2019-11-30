@@ -15,10 +15,9 @@ object SlickMain extends App {
     (for {
       _                  <- ZIO.environment[Environment]
       h2db               = Database.forConfig("h2mem1")
-      appEnv             = createAppEnv(h2db)
+      env                = createAppEnv(h2db)
       program            = Program[DBIO]
-      _                  <- SlickZIO(Foos.foos.schema.create).provideSome(appEnv)
-      result             <- program.provideSome(appEnv)
+      result             <- (SlickZIO(Foos.foos.schema.create) *> program).provideSome(env)
       (failure, success) = result
       failureMsg = s"Failing result: ${failure.toString}\n(failure to " +
         "merge means nothing is merged so a \"None\" is expected)"

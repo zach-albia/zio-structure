@@ -27,9 +27,9 @@ object Program {
     for {
       env <- ZIO.environment[Environment[F]]
       fooService = new FooService.Service[F] {
-        val fooRepository: FooRepository.Service[F] = env.fooRepository
-        val toZIO: FunctionK[F, UIO]                = env.functionK
-        val transact: Transactor.Service[F]         = env.transact
+        val fooRepository = env.fooRepository
+        val toZIO         = env.functionK
+        val transact      = env.transact
       }
       foo     <- fooService.createFoo("foo")
       bar     <- fooService.createFoo(name = "bar")
