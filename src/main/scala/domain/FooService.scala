@@ -17,14 +17,14 @@ object FooService {
   case class InMemoryFooService(mapTable: Ref[Map[Int, Foo]],
                                 idSequence: Ref[Int]) extends Service {
 
-    override def createFoo(name: String): ZIO[Any, Nothing, Foo] =
+    def createFoo(name: String): ZIO[Any, Nothing, Foo] =
       for {
         newId <- idSequence.update(_ + 1)
         foo   = Foo(newId, name)
         _     <- mapTable.update(store => store + (newId -> foo))
       } yield foo
 
-    override def mergeFoos(
+    def mergeFoos(
         fooId: Int,
         otherId: Int): ZIO[Any, Nothing, Option[(Foo, Foo)]] =
       for {
@@ -32,7 +32,7 @@ object FooService {
         mergeResult <- doMergeFoos(foosOpt)
       } yield mergeResult
 
-    def findFoos(fooId: Int, otherId: Int) =
+    private def findFoos(fooId: Int, otherId: Int) =
       for {
         fooPair            <- fetch(fooId).zip(fetch(otherId))
         (fooOpt, otherOpt) = fooPair
@@ -42,7 +42,7 @@ object FooService {
         } yield (foo, other)
       } yield opt
 
-    def doMergeFoos(foosOpt: Option[(Foo, Foo)]) =
+    private def doMergeFoos(foosOpt: Option[(Foo, Foo)]) =
       foosOpt
         .map {
           case (foo, other) =>
