@@ -1,6 +1,7 @@
 package persistence.slick_
 
 import domain._
+import persistence.slick_.Foos.foos
 import slick.jdbc.H2Profile.api._
 import zio.ZIO
 
@@ -15,6 +16,8 @@ import scala.language.implicitConversions
   */
 object SlickFooService {
 
+  val IGNORED_PLACEHOLDER = 42069
+
   /**
     * Provides methods that implement our example use cases for our `Foo` data
     * type. `createFoo` is a basic example of how to use a repository and
@@ -25,7 +28,6 @@ object SlickFooService {
 
     val db: Database
     val slickDb: SlickDatabase = new SlickDatabase { val database = db }
-    val repo: FooRepository.Service[DBIO]
     implicit val ec: ExecutionContext
 
     implicit def toZIO[A](dbio: DBIO[A]): ZIO[Any, Nothing, A] =
@@ -38,7 +40,7 @@ object SlickFooService {
       * @return The newly created `Foo`
       */
     def createFoo(name: String): ZIO[Any, Nothing, Foo] =
-      repo.create(name)
+      create(name)
 
     /**
       * Merges the names of two `Foo` instances identified by their IDs. Merging
@@ -58,7 +60,7 @@ object SlickFooService {
 
     private def findFoos(fooId: Int, otherId: Int) =
       toZIO(for {
-        fooPair            <- repo.fetch(fooId).zip(repo.fetch(otherId))
+        fooPair            <- fetch(fooId).zip(fetch(otherId))
         (fooOpt, otherOpt) = fooPair
         opt = for {
           foo   <- fooOpt
@@ -75,8 +77,8 @@ object SlickFooService {
             val mergedFooName   = foo.name + " " + other.name
             val mergedOtherName = other.name + " " + foo.name
             for {
-              fooOpt   <- repo.update(foo.id, mergedFooName)
-              otherOpt <- repo.update(other.id, mergedOtherName)
+              fooOpt   <- update(foo.id, mergedFooName)
+              otherOpt <- update(other.id, mergedOtherName)
               fooOther = for {
                 foo   <- fooOpt
                 other <- otherOpt
@@ -86,5 +88,23 @@ object SlickFooService {
         .getOrElse(DBIO.successful(None))
         .transactionally
     }
+
+    private def create(name: String): DBIO[Foo] =
+      ((foos returning foos.map(_.id)) += Foo(IGNORED_PLACEHOLDER, name))
+        .map(Foo(_, name))
+
+    def fetch(id: Int): DBIO[Option[Foo]] =
+      foos.filter(_.id === id).result.headOption
+
+    def update(id: Int, name: String): DBIO[Option[Foo]] = {
+      val updatedFoo = Foo(id, name)
+      foos
+        .filter(_.id === id)
+        .update(updatedFoo)
+        .map[Option[Foo]](i => if (i == 0) None else Some(updatedFoo))
+    }
+
+    def delete(id: Int): DBIO[Unit] =
+      foos.filter(_.id === id).delete.map(_ => ())
   }
 }

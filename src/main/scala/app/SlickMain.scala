@@ -41,7 +41,6 @@ object SlickMain extends App {
   private def createFooService(h2db: Database) =
     new SlickFooService.Service {
       lazy val db   = h2db
-      lazy val repo = SlickFooRepository()(global)
       lazy val ec   = global
     }
 

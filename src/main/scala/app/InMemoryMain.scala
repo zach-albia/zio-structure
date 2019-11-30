@@ -31,8 +31,7 @@ object InMemoryMain extends App {
   private def createEnv(map: Ref[Map[Int, Foo]],
                         counter: Ref[Int]): ZEnv => Env = { base =>
     new Env {
-      val fooService = FooService.InMemoryFooService(
-        FooRepository.InMemoryFooRepository(map, counter))
+      val fooService = FooService.InMemoryFooService(map, counter)
       val console = base.console
     }
   }

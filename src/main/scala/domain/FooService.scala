@@ -1,7 +1,6 @@
 package domain
 
-import domain.FooRepository.InMemoryFooRepository
-import zio.ZIO
+import zio._
 
 trait FooService {
   val fooService: FooService.Service
@@ -15,9 +14,15 @@ object FooService {
                   otherId: Int): ZIO[Any, Nothing, Option[(Foo, Foo)]]
   }
 
-  case class InMemoryFooService(repo: InMemoryFooRepository) extends Service {
+  case class InMemoryFooService(mapTable: Ref[Map[Int, Foo]],
+                                idSequence: Ref[Int]) extends Service {
+
     override def createFoo(name: String): ZIO[Any, Nothing, Foo] =
-      repo.create(name)
+      for {
+        newId <- idSequence.update(_ + 1)
+        foo   = Foo(newId, name)
+        _     <- mapTable.update(store => store + (newId -> foo))
+      } yield foo
 
     override def mergeFoos(
         fooId: Int,
@@ -29,7 +34,7 @@ object FooService {
 
     def findFoos(fooId: Int, otherId: Int) =
       for {
-        fooPair            <- repo.fetch(fooId).zip(repo.fetch(otherId))
+        fooPair            <- fetch(fooId).zip(fetch(otherId))
         (fooOpt, otherOpt) = fooPair
         opt = for {
           foo   <- fooOpt
@@ -44,8 +49,8 @@ object FooService {
             val mergedFooName   = foo.name + " " + other.name
             val mergedOtherName = other.name + " " + foo.name
             for {
-              fooOpt   <- repo.update(foo.id, mergedFooName)
-              otherOpt <- repo.update(other.id, mergedOtherName)
+              fooOpt   <- update(foo.id, mergedFooName)
+              otherOpt <- update(other.id, mergedOtherName)
               fooOther = for {
                 foo   <- fooOpt
                 other <- otherOpt
@@ -53,5 +58,19 @@ object FooService {
             } yield fooOther
         }
         .getOrElse(ZIO.succeed(None))
+
+    private def fetch(id: Int): UIO[Option[Foo]] =
+      mapTable.get.map(_.get(id))
+
+    private def update(id: Int, name: String): UIO[Option[Foo]] =
+      for {
+        updatedFooOpt <- mapTable.get.map(_.get(id).map(_ => Foo(id, name)))
+        _ <- updatedFooOpt
+          .map(foo => mapTable.update(store => store + (id -> foo)))
+          .getOrElse(UIO.unit)
+      } yield updatedFooOpt
+
+    private def delete(id: Int): UIO[Unit] =
+      mapTable.update(_ - id).unit
   }
 }
