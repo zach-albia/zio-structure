@@ -19,13 +19,14 @@ object SlickMain extends App {
       program            = Program[DBIO]
       result             <- (SlickZIO(Foos.foos.schema.create) *> program).provideSome(env)
       (failure, success) = result
-      failureMsg = s"Failing result: ${failure.toString}\n(failure to " +
-        "merge means nothing is merged so a \"None\" is expected)"
-      _ <- putStrLn(failureMsg)
-      successMsg = s"Successful result: ${success.toString} \n(displays " +
-        "foos with IDs 1 and 2, along with their merged names \"foo bar\"" +
-        "and \"bar foo\""
-      exitCode <- putStrLn(successMsg)
+      _ <- putStrLn(
+            "// failure to merge means nothing is merged so a \"None\" is expected")
+      failureMsg = s"Failing result: ${failure.toString}"
+      _          <- putStrLn(failureMsg)
+      _ <- putStrLn(
+            "// displays foos with IDs 1 and 2, along with their merged names \"foo bar\" and \"bar foo\"")
+      successMsg = s"Successful result: ${success.toString}"
+      exitCode   <- putStrLn(successMsg)
     } yield exitCode).foldM(printError, _ => ZIO.succeed(0))
   }
 

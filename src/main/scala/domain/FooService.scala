@@ -7,12 +7,6 @@ import zio.ZIO
 
 import scala.language.{higherKinds, implicitConversions}
 
-/**
-  * If I'm understanding the ZIO program structure convention correctly,
-  * `FooService` is a top-tier component accessed directly by `Main` so I guess
-  * it doesn't need to have an environment member `fooService` like
-  * `FooRepository` does.
-  */
 object FooService {
 
   /**
@@ -52,37 +46,34 @@ object FooService {
     def mergeFoos(fooId: Int, otherId: Int)(
         implicit MonadF: Monad[F]): ZIO[Any, Nothing, Option[(Foo, Foo)]] =
       for {
-        foosOpt     <- findFoos(fooId, otherId)
-        mergeResult <- ZIO.sequence(doMergeFoos(foosOpt))
-        mergedFoos  = mergeResult.flatten.sequence.flatMap(pairFoos)
-      } yield mergedFoos
-
-    private def doMergeFoos(foosOpt: Option[List[Foo]])(
-        implicit MonadF: Monad[F]) = {
-      for {
-        foos         <- foosOpt
-        fooBar       <- pairFoos(foos)
-        (_1st, _2nd) = fooBar
-        mergeF = for {
-          foo <- fooRepository.update(_1st.id, _1st.name + " " + _2nd.name)
-          bar <- fooRepository.update(_2nd.id, _2nd.name + " " + _1st.name)
-        } yield List(foo, bar)
-      } yield toZIO(transact(mergeF))
-    }
+        fooBar      <- findFoos(fooId, otherId)
+        mergeResult <- doMergeFoos(fooBar)
+      } yield mergeResult
 
     private def findFoos(fooId: Int, otherId: Int) = {
-      val fetches = List(
-        fooRepository.fetch(fooId),
-        fooRepository.fetch(otherId)
-      ).map(toZIO(_))
-      ZIO.sequence(fetches).map(_.sequence)
+      val foo = toZIO(fooRepository.fetch(fooId))
+      val bar = toZIO(fooRepository.fetch(otherId))
+      foo zip bar map {
+        case (fooOpt, otherOpt) =>
+          for {
+            foo   <- fooOpt
+            other <- otherOpt
+          } yield (foo, other)
+      }
     }
 
-    /** Pairs foos iff the list has two elements */
-    private def pairFoos(foos: List[Foo]) = {
-      if (foos.length == 2) {
-        Some((foos.head, foos.tail.head))
-      } else None
+    private def doMergeFoos(fooPairOpt: Option[(Foo, Foo)])(
+        implicit MonadF: Monad[F]): ZIO[Any, Nothing, Option[(Foo, Foo)]] = {
+      ZIO
+        .sequence(for {
+          fooPair    <- fooPairOpt
+          (foo, bar) = fooPair
+          mergeM = for {
+            fooOpt <- fooRepository.update(foo.id, foo.name + " " + bar.name)
+            barOpt <- fooRepository.update(bar.id, bar.name + " " + foo.name)
+          } yield (fooOpt, barOpt).tupled
+        } yield toZIO(transact(mergeM)))
+        .map(_.headOption.flatten)
     }
   }
 }
