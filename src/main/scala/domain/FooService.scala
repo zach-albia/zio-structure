@@ -7,6 +7,10 @@ import zio.ZIO
 
 import scala.language.{higherKinds, implicitConversions}
 
+trait FooService[F[_]] {
+  val fooService: FooService.Service[F]
+}
+
 object FooService {
 
   /**

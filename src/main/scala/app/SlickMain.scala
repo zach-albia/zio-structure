@@ -1,6 +1,7 @@
 package app
 
 import com.rms.miu.slickcats.DBIOInstances._
+import domain.FooService
 import persistence.slick_._
 import slick.jdbc.H2Profile
 import slick.jdbc.H2Profile.api._
@@ -13,30 +14,25 @@ object SlickMain extends App {
 
   def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
     (for {
-      _                  <- ZIO.environment[Environment]
-      h2db               = Database.forConfig("h2mem1")
-      env                = createAppEnv(h2db)
-      program            = Program[DBIO]
-      result             <- (SlickZIO(Foos.foos.schema.create) *> program).provideSome(env)
-      (failure, success) = result
-      _ <- putStrLn(
-            "// failure to merge means nothing is merged so a \"None\" is expected")
-      failureMsg = s"Failing result: ${failure.toString}"
-      _          <- putStrLn(failureMsg)
-      _ <- putStrLn(
-            "// displays foos with IDs 1 and 2, along with their merged names \"foo bar\" and \"bar foo\"")
-      successMsg = s"Successful result: ${success.toString}"
-      exitCode   <- putStrLn(successMsg)
+      _       <- ZIO.environment[Environment]
+      h2db    = Database.forConfig("h2mem1")
+      env     = createAppEnv(h2db)
+      program = Program[DBIO]
+      exitCode <- (SlickZIO(Foos.foos.schema.create) *> program)
+                   .provideSome(env)
     } yield exitCode).foldM(printError, _ => ZIO.succeed(0))
   }
 
   private def createAppEnv(h2db: H2Profile.backend.Database)
-    : Environment => Program.Environment[DBIO] with SlickDatabase = { _ =>
+    : Environment => Program.Environment[DBIO] with SlickDatabase = { base =>
     new Program.Environment[DBIO] with SlickDatabase {
-      val database      = h2db
-      val transact      = SlickTransactor
-      val functionK     = new SlickFunctionK { val db = h2db }
-      val fooRepository = SlickFooRepository()
+      val console  = base.console
+      val database = h2db
+      val fooService = new FooService.Service[DBIO] {
+        val transact      = SlickTransactor
+        val fooRepository = SlickFooRepository()
+        val toZIO         = new SlickFunctionK { override val db = h2db }
+      }
     }
   }
 

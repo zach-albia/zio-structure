@@ -10,33 +10,25 @@ object InMemoryMain extends App {
 
   def run(args: List[String]): ZIO[Environment, Nothing, Int] =
     for {
-      map                <- Ref.make(Map.empty[Int, Foo])
-      counter            <- Ref.make(0)
-      programUIO         = Program[UIO]
-      appEnv             = createAppEnv(map, counter)
-      result             <- programUIO.provideSome(appEnv)
-      (failure, success) = result
-      _ <- putStrLn(
-            "// failure to merge means nothing is merged so a \"None\" is expected")
-      failureMsg = s"Failing result: ${failure.toString}"
-      _          <- putStrLn(failureMsg)
-      _ <- putStrLn(
-            "// displays foos with IDs 1 and 2, along with their merged names \"foo bar\" and \"bar foo\"")
-      successMsg = s"Successful result: ${success.toString}"
-      exitCode   <- putStrLn(successMsg).fold(_ => 1, _ => 0)
+      map        <- Ref.make(Map.empty[Int, Foo])
+      counter    <- Ref.make(0)
+      programUIO = Program[UIO]
+      appEnv     = createAppEnv(map, counter)
+      exitCode   <- programUIO.provideSome(appEnv)
     } yield exitCode
 
   /**
     * Creates the whole object graph needed for the program to run.
     */
   private def createAppEnv(map: Ref[Map[Int, Foo]], counter: Ref[Int]) = {
-    _: Environment =>
+    base: Environment =>
       new Program.Environment[UIO] {
-        val transact = Transactor.InMemoryTransactor()
-        val functionK = new FunctionK[UIO, UIO] {
-          def apply[A](fa: UIO[A]): UIO[A] = fa
+        val console = base.console
+        val fooService = new FooService.Service[UIO] {
+          val transact      = Transactor.InMemoryTransactor()
+          val toZIO         = FunctionK.id[UIO]
+          val fooRepository = FooRepository.InMemoryFooRepository(map, counter)
         }
-        val fooRepository = FooRepository.InMemoryFooRepository(map, counter)
       }
   }
 }
