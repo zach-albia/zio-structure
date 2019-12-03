@@ -57,13 +57,7 @@ object FooService {
     private def findFoos(fooId: Int, otherId: Int) = {
       val foo = toZIO(fooRepository.fetch(fooId))
       val bar = toZIO(fooRepository.fetch(otherId))
-      foo zip bar map {
-        case (fooOpt, otherOpt) =>
-          for {
-            foo   <- fooOpt
-            other <- otherOpt
-          } yield (foo, other)
-      }
+      foo.zip(bar).map { case (f, b) => (f, b).tupled }
     }
 
     private def doMergeFoos(fooPairOpt: Option[(Foo, Foo)])(
