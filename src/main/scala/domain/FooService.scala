@@ -7,34 +7,25 @@ trait FooService {
 }
 
 object FooService {
-  trait Service {
-    def createFoo(name: String): ZIO[Any, Nothing, Foo]
 
-    def mergeFoos(fooId: Int,
-                  otherId: Int): ZIO[Any, Nothing, Option[(Foo, Foo)]]
-  }
+  trait Service[R] extends FooRepository {
 
-  case class InMemoryFooService(mapTable: Ref[Map[Int, Foo]],
-                                idSequence: Ref[Int]) extends Service {
+    import fooRepository._
 
-    def createFoo(name: String): ZIO[Any, Nothing, Foo] =
+    def transactor[, A](program: ZIO[R, Nothing, A]): ZIO[R, Nothing, A]
+
+    def createFoo[R](name: String): URIO[R, Foo] =
+      create[R](name)
+
+    def mergeFoos[R](fooId: Int, otherId: Int): URIO[R, Option[(Foo, Foo)]] =
       for {
-        newId <- idSequence.update(_ + 1)
-        foo   = Foo(newId, name)
-        _     <- mapTable.update(store => store + (newId -> foo))
-      } yield foo
-
-    def mergeFoos(
-        fooId: Int,
-        otherId: Int): ZIO[Any, Nothing, Option[(Foo, Foo)]] =
-      for {
-        foosOpt     <- findFoos(fooId, otherId)
+        foosOpt     <- findFoos[R](fooId, otherId)
         mergeResult <- doMergeFoos(foosOpt)
       } yield mergeResult
 
-    private def findFoos(fooId: Int, otherId: Int) =
+    def findFoos[R](fooId: Int, otherId: Int) =
       for {
-        fooPair            <- fetch(fooId).zip(fetch(otherId))
+        fooPair            <- fetch[R](fooId).zip(fetch(otherId))
         (fooOpt, otherOpt) = fooPair
         opt = for {
           foo   <- fooOpt
@@ -42,35 +33,33 @@ object FooService {
         } yield (foo, other)
       } yield opt
 
-    private def doMergeFoos(foosOpt: Option[(Foo, Foo)]) =
-      foosOpt
-        .map {
-          case (foo, other) =>
-            val mergedFooName   = foo.name + " " + other.name
-            val mergedOtherName = other.name + " " + foo.name
-            for {
-              fooOpt   <- update(foo.id, mergedFooName)
-              otherOpt <- update(other.id, mergedOtherName)
-              fooOther = for {
-                foo   <- fooOpt
-                other <- otherOpt
-              } yield (foo, other)
-            } yield fooOther
-        }
-        .getOrElse(ZIO.succeed(None))
+    def doMergeFoos[R](
+        foosOpt: Option[(Foo, Foo)]): URIO[R, Option[(Foo, Foo)]] =
+      transactor(
+        foosOpt
+          .map({
+            case (foo, other) =>
+              val mergedFooName   = foo.name + " " + other.name
+              val mergedOtherName = other.name + " " + foo.name
+              for {
+                fooOpt   <- update[R](foo.id, mergedFooName)
+                otherOpt <- update[R](other.id, mergedOtherName)
+                fooOther = for {
+                  foo   <- fooOpt
+                  other <- otherOpt
+                } yield (foo, other)
+              } yield fooOther
+          })
+          .getOrElse(URIO.succeed(None)))
+  }
 
-    private def fetch(id: Int): UIO[Option[Foo]] =
-      mapTable.get.map(_.get(id))
+  case class InMemoryFooService(map: Ref[Map[Int, Foo]], counter: Ref[Int])
+      extends Service {
 
-    private def update(id: Int, name: String): UIO[Option[Foo]] =
-      for {
-        updatedFooOpt <- mapTable.get.map(_.get(id).map(_ => Foo(id, name)))
-        _ <- updatedFooOpt
-          .map(foo => mapTable.update(store => store + (id -> foo)))
-          .getOrElse(UIO.unit)
-      } yield updatedFooOpt
+    def transactor[R, A](program: ZIO[R, Nothing, A]): ZIO[R, Nothing, A] =
+      program
 
-    private def delete(id: Int): UIO[Unit] =
-      mapTable.update(_ - id).unit
+    val fooRepository: FooRepository.Service =
+      FooRepository.InMemoryRepository(map, counter)
   }
 }

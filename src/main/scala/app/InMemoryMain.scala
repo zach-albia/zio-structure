@@ -32,7 +32,7 @@ object InMemoryMain extends App {
                         counter: Ref[Int]): ZEnv => Env = { base =>
     new Env {
       val fooService = FooService.InMemoryFooService(map, counter)
-      val console = base.console
+      val console    = base.console
     }
   }
 }
