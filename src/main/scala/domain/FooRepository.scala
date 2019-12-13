@@ -7,13 +7,11 @@ import scala.language.higherKinds
 /**
   * I guess the convention is for traits to have environment members. In this
   * case, `fooRepository` is such a member.
-  *
-  * @tparam F The effect type
   */
-trait FooRepository[F[_]] {
+trait FooRepository {
 
   /** Environment member */
-  val fooRepository: FooRepository.Service[F]
+  val fooRepository: FooRepository.Service
 }
 
 /**
@@ -22,20 +20,15 @@ trait FooRepository[F[_]] {
   */
 object FooRepository {
 
-  /**
-    * Basic CRUD interface
-    *
-    * @tparam F The repository effect type
-    */
-  trait Service[F[_]] {
+  trait Service {
 
-    def create(name: String): F[Foo]
+    def create(name: String): UIO[Foo]
 
-    def fetch(id: Int): F[Option[Foo]]
+    def fetch(id: Int): UIO[Option[Foo]]
 
-    def update(id: Int, name: String): F[Option[Foo]]
+    def update(id: Int, name: String): UIO[Option[Foo]]
 
-    def delete(id: Int): F[Unit]
+    def delete(id: Int): UIO[Unit]
   }
 
   /**
@@ -44,7 +37,7 @@ object FooRepository {
   final case class InMemoryFooRepository(
       mapTable: Ref[Map[Int, Foo]],
       idSequence: Ref[Int]
-  ) extends Service[UIO] {
+  ) extends Service {
 
     override def create(name: String): UIO[Foo] =
       for {

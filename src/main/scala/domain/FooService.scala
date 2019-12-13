@@ -1,14 +1,13 @@
 package domain
 
-import cats.Monad
-import cats.arrow.FunctionK
 import cats.implicits._
+import com.vladkopanev.zio.saga.Saga._
 import zio.ZIO
 
 import scala.language.{higherKinds, implicitConversions}
 
-trait FooService[F[_]] {
-  val fooService: FooService.Service[F]
+trait FooService {
+  val fooService: FooService.Service
 }
 
 object FooService {
@@ -18,14 +17,10 @@ object FooService {
     * type. `createFoo` is a basic example of how to use a repository and
     * `mergeFoos` is a more complex example that makes the "merging of `Foo`s"
     * transactional.
-    *
-    * @tparam F repository effect type
     */
-  trait Service[F[_]] {
+  trait Service {
 
-    val fooRepository: FooRepository.Service[F]
-    val toZIO: FunctionK[F, ZIO[Any, Nothing, *]]
-    val transact: Transactor.Service[F]
+    val fooRepository: FooRepository.Service
 
     /**
       * Creates a foo given its name
@@ -34,7 +29,7 @@ object FooService {
       * @return The newly created `Foo`
       */
     def createFoo(name: String): ZIO[Any, Nothing, Foo] =
-      toZIO(fooRepository.create(name))
+      fooRepository.create(name)
 
     /**
       * Merges the names of two `Foo` instances identified by their IDs. Merging
@@ -43,34 +38,33 @@ object FooService {
       *
       * @param fooId First `Foo` ID
       * @param otherId Second `Foo` ID
-      * @param MonadF Monad instance required for flat-mapping over the
-      *               repository effect type `F`.
       * @return The merged `Foo`s as an optional pair
       */
-    def mergeFoos(fooId: Int, otherId: Int)(
-        implicit MonadF: Monad[F]): ZIO[Any, Nothing, Option[(Foo, Foo)]] =
+    def mergeFoos(fooId: Int,
+                  otherId: Int): ZIO[Any, Nothing, Option[(Foo, Foo)]] =
       for {
         fooBar      <- findFoos(fooId, otherId)
         mergeResult <- doMergeFoos(fooBar)
       } yield mergeResult
 
     private def findFoos(fooId: Int, otherId: Int) = {
-      val foo = toZIO(fooRepository.fetch(fooId))
-      val bar = toZIO(fooRepository.fetch(otherId))
+      val foo = fooRepository.fetch(fooId)
+      val bar = fooRepository.fetch(otherId)
       foo.zip(bar).map { case (f, b) => (f, b).tupled }
     }
 
-    private def doMergeFoos(fooPairOpt: Option[(Foo, Foo)])(
-        implicit MonadF: Monad[F]): ZIO[Any, Nothing, Option[(Foo, Foo)]] = {
+    private def doMergeFoos(fooPairOpt: Option[(Foo, Foo)])
+      : ZIO[Any, Nothing, Option[(Foo, Foo)]] = {
       ZIO
-        .sequence(for {
-          fooPair    <- fooPairOpt
-          (foo, bar) = fooPair
-          mergeM = for {
-            fooOpt <- fooRepository.update(foo.id, foo.name + " " + bar.name)
-            barOpt <- fooRepository.update(bar.id, bar.name + " " + foo.name)
-          } yield (fooOpt, barOpt).tupled
-        } yield toZIO(transact(mergeM)))
+        .sequence(
+          for {
+            fooPair    <- fooPairOpt
+            (foo, bar) = fooPair
+          } yield
+            for {
+              fooOpt <- fooRepository.update(foo.id, foo.name + " " + bar.name)
+              barOpt <- fooRepository.update(bar.id, bar.name + " " + foo.name)
+            } yield (fooOpt, barOpt).tupled)
         .map(_.headOption.flatten)
     }
   }

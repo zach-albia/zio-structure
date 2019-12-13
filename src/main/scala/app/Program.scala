@@ -1,6 +1,5 @@
 package app
 
-import cats.Monad
 import domain._
 import zio.ZIO
 import zio.console._
@@ -15,7 +14,7 @@ object Program {
   val SUCCESS_COMMENT =
     "// displays foos with IDs 1 and 2, along with their merged names \"foo bar\" and \"bar foo\""
 
-  trait Environment[F[_]] extends FooService[F] with Console
+  trait Env extends FooService with Console
 
   type Result = (Option[(Foo, Foo)], Option[(Foo, Foo)])
 
@@ -24,9 +23,9 @@ object Program {
     *
     * @return
     */
-  def apply[F[_]]()(implicit F: Monad[F]): ZIO[Environment[F], Nothing, Int] = {
+  def apply(): ZIO[Env, Nothing, Int] = {
     for {
-      fooService <- ZIO.access[Environment[F]](_.fooService)
+      fooService <- ZIO.access[Env](_.fooService)
       foo        <- fooService.createFoo("foo")
       bar        <- fooService.createFoo(name = "bar")
       failure    <- fooService.mergeFoos(BAD_ID, bar.id)

@@ -1,6 +1,5 @@
 package app
 
-import com.rms.miu.slickcats.DBIOInstances._
 import domain.FooService
 import persistence.slick_.Foos.foos
 import persistence.slick_._
@@ -9,26 +8,31 @@ import slick.jdbc.H2Profile.api._
 import zio._
 import zio.console._
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 
 object SlickMain extends App {
 
-  def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
-    val h2db    = Database.forConfig("h2mem1")
-    (SlickZIO(foos.schema.create) *> Program[DBIO])
-      .provideSome(createAppEnv(h2db))
-      .foldM(printError, _ => ZIO.succeed(0))
-  }
+  def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
+    for {
+      ec <- ZIO.accessM[ZEnv](_.blocking.blockingExecutor).map(_.asEC)
+      result <- (SlickZIO(foos.schema.create) *> Program())
+                 .provideSome(createAppEnv(Database.forConfig("h2mem1"), ec))
+                 .foldM(printError, _ => ZIO.succeed(0))
+    } yield result
 
-  private def createAppEnv(h2db: H2Profile.backend.Database)
-    : ZEnv => Program.Environment[DBIO] with SlickDatabase = { base =>
-    new Program.Environment[DBIO] with SlickDatabase {
+  private def createAppEnv(h2db: H2Profile.backend.Database,
+                           executionContext: ExecutionContext)
+    : ZEnv => Program.Env with SlickDatabase = { base =>
+    new Program.Env with SlickDatabase {
       val console  = base.console
       val database = h2db
-      val fooService = new FooService.Service[DBIO] {
-        val transact      = SlickTransactor
-        val fooRepository = SlickFooRepository()
-        val toZIO         = new SlickFunctionK { override val db = h2db }
+      val fooService = new FooService.Service {
+        val fooRepository = new SlickFooRepository {
+          val slickDatabase = new SlickDatabase {
+            override val database = h2db
+          }
+          implicit val ec = executionContext
+        }
       }
     }
   }
