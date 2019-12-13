@@ -15,10 +15,10 @@ case class SlickFooRepository(implicit ec: ExecutionContext)
     ((foos returning foos.map(_.id)) += Foo(IGNORED_PLACEHOLDER, name))
       .map(Foo(_, name))
 
-  override def fetch(id: Int): DBIO[Option[Foo]] =
+  def fetch(id: Int): DBIO[Option[Foo]] =
     foos.filter(_.id === id).result.headOption
 
-  override def update(id: Int, name: String): DBIO[Option[Foo]] = {
+  def update(id: Int, name: String): DBIO[Option[Foo]] = {
     val updatedFoo = Foo(id, name)
     foos
       .filter(_.id === id)
@@ -26,7 +26,7 @@ case class SlickFooRepository(implicit ec: ExecutionContext)
       .map[Option[Foo]](i => if (i == 0) None else Some(updatedFoo))
   }
 
-  override def delete(id: Int): DBIO[Unit] =
+  def delete(id: Int): DBIO[Unit] =
     foos.filter(_.id === id).delete.map(_ => ())
 }
 
