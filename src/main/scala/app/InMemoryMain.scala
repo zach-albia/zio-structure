@@ -8,7 +8,7 @@ import zio.interop.catz._
 
 object InMemoryMain extends App {
 
-  def run(args: List[String]): ZIO[Environment, Nothing, Int] =
+  def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
     for {
       map        <- Ref.make(Map.empty[Int, Foo])
       counter    <- Ref.make(0)
@@ -21,7 +21,7 @@ object InMemoryMain extends App {
     * Creates the whole object graph needed for the program to run.
     */
   private def createAppEnv(map: Ref[Map[Int, Foo]], counter: Ref[Int]) = {
-    base: Environment =>
+    base: ZEnv =>
       new Program.Environment[UIO] {
         val console = base.console
         val fooService = new FooService.Service[UIO] {

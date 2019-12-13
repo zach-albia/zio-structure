@@ -13,7 +13,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 object SlickMain extends App {
 
-  def run(args: List[String]): ZIO[Environment, Nothing, Int] = {
+  def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val h2db    = Database.forConfig("h2mem1")
     (SlickZIO(foos.schema.create) *> Program[DBIO])
       .provideSome(createAppEnv(h2db))
@@ -21,7 +21,7 @@ object SlickMain extends App {
   }
 
   private def createAppEnv(h2db: H2Profile.backend.Database)
-    : Environment => Program.Environment[DBIO] with SlickDatabase = { base =>
+    : ZEnv => Program.Environment[DBIO] with SlickDatabase = { base =>
     new Program.Environment[DBIO] with SlickDatabase {
       val console  = base.console
       val database = h2db

@@ -36,7 +36,7 @@ object Program {
       _          <- putStrLn(failureMsg)
       _          <- putStrLn(SUCCESS_COMMENT)
       successMsg = s"Successful result: ${success.toString}"
-      exitCode   <- putStrLn(successMsg).fold(_ => 1, _ => 0)
-    } yield exitCode
+      _          <- putStrLn(successMsg)
+    } yield 0
   }
 }
