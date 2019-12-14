@@ -11,8 +11,8 @@ object InMemoryMain extends App {
       counter    <- Ref.make(0)
       programUIO = Program()
       appEnv     = createAppEnv(map, counter)
-      exitCode   <- programUIO.provideSome(appEnv)
-    } yield exitCode
+      _          <- programUIO.provideSome(appEnv)
+    } yield 0
 
   /**
     * Creates the whole object graph needed for the program to run.

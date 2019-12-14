@@ -39,17 +39,17 @@ object FooRepository {
       idSequence: Ref[Int]
   ) extends Service {
 
-    override def create(name: String): UIO[Foo] =
+    def create(name: String): UIO[Foo] =
       for {
         newId <- idSequence.update(_ + 1)
         foo   = Foo(newId, name)
         _     <- mapTable.update(store => store + (newId -> foo))
       } yield foo
 
-    override def fetch(id: Int): UIO[Option[Foo]] =
+    def fetch(id: Int): UIO[Option[Foo]] =
       mapTable.get.map(_.get(id))
 
-    override def update(id: Int, name: String): UIO[Option[Foo]] =
+    def update(id: Int, name: String): UIO[Option[Foo]] =
       for {
         updatedFooOpt <- mapTable.get.map(_.get(id).map(_ => Foo(id, name)))
         _ <- updatedFooOpt
@@ -57,7 +57,7 @@ object FooRepository {
               .getOrElse(UIO.unit)
       } yield updatedFooOpt
 
-    override def delete(id: Int): UIO[Unit] =
+    def delete(id: Int): UIO[Unit] =
       mapTable.update(_ - id).unit
   }
 

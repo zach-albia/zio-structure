@@ -6,22 +6,17 @@ import persistence.slick_._
 import slick.jdbc.H2Profile
 import slick.jdbc.H2Profile.api._
 import zio._
-import zio.console._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object SlickMain extends App {
 
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
-    for {
-      ec <- ZIO.accessM[ZEnv](_.blocking.blockingExecutor).map(_.asEC)
-      result <- (SlickZIO(foos.schema.create) *> Program())
-                 .provideSome(createAppEnv(Database.forConfig("h2mem1"), ec))
-                 .foldM(printError, _ => ZIO.succeed(0))
-    } yield result
+    (SlickZIO(foos.schema.create) *> Program())
+      .provideSome(createAppEnv(Database.forConfig("h2mem1")))
+      .foldM(Program.printError, _ => ZIO.succeed(0))
 
-  private def createAppEnv(h2db: H2Profile.backend.Database,
-                           executionContext: ExecutionContext)
+  private def createAppEnv(h2db: H2Profile.backend.Database)
     : ZEnv => Program.Env with SlickDatabase = { base =>
     new Program.Env with SlickDatabase {
       val console  = base.console
@@ -31,16 +26,10 @@ object SlickMain extends App {
           val slickDatabase = new SlickDatabase {
             override val database = h2db
           }
-          implicit val ec = executionContext
+          implicit val ec = global // let Slick use its own thread pool
         }
       }
     }
   }
 
-  private def printError(err: Throwable) =
-    putStrLn(
-      s"Execution failed with: $err\nStack " +
-        s"trace:\n${err.getStackTrace
-          .map(_.toString)
-          .mkString("\n")}") *> ZIO.succeed(1)
 }

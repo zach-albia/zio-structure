@@ -23,7 +23,7 @@ object Program {
     *
     * @return
     */
-  def apply(): ZIO[Env, Nothing, Int] = {
+  def apply(): ZIO[Env, Nothing, Unit] = {
     for {
       fooService <- ZIO.access[Env](_.fooService)
       foo        <- fooService.createFoo("foo")
@@ -36,6 +36,13 @@ object Program {
       _          <- putStrLn(SUCCESS_COMMENT)
       successMsg = s"Successful result: ${success.toString}"
       _          <- putStrLn(successMsg)
-    } yield 0
+    } yield ()
   }
+
+  def printError(err: Throwable) =
+    putStrLn(
+      s"Execution failed with: $err\nStack " +
+        s"trace:\n${err.getStackTrace
+          .map(_.toString)
+          .mkString("\n")}") *> ZIO.succeed(1)
 }

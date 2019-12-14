@@ -2,7 +2,7 @@ package domain
 
 import cats.implicits._
 import com.vladkopanev.zio.saga.Saga._
-import zio.ZIO
+import zio.{UIO, ZIO}
 
 import scala.language.{higherKinds, implicitConversions}
 
@@ -28,7 +28,7 @@ object FooService {
       * @param name The name of the `Foo`
       * @return The newly created `Foo`
       */
-    def createFoo(name: String): ZIO[Any, Nothing, Foo] =
+    def createFoo(name: String): UIO[Foo] =
       fooRepository.create(name)
 
     /**
@@ -40,8 +40,7 @@ object FooService {
       * @param otherId Second `Foo` ID
       * @return The merged `Foo`s as an optional pair
       */
-    def mergeFoos(fooId: Int,
-                  otherId: Int): ZIO[Any, Nothing, Option[(Foo, Foo)]] =
+    def mergeFoos(fooId: Int, otherId: Int): UIO[Option[(Foo, Foo)]] =
       for {
         fooBar      <- findFoos(fooId, otherId)
         mergeResult <- doMergeFoos(fooBar)
@@ -53,19 +52,30 @@ object FooService {
       foo.zip(bar).map { case (f, b) => (f, b).tupled }
     }
 
-    private def doMergeFoos(fooPairOpt: Option[(Foo, Foo)])
-      : ZIO[Any, Nothing, Option[(Foo, Foo)]] = {
+    private def doMergeFoos(
+        fooPairOpt: Option[(Foo, Foo)]): UIO[Option[(Foo, Foo)]] = {
       ZIO
         .sequence(
-          for {
-            fooPair    <- fooPairOpt
-            (foo, bar) = fooPair
+          (for {
+            fooPair              <- fooPairOpt
+            (foo, bar)           = fooPair
+            (fooUpdate, fooUndo) = updateAndUndo(foo, bar)
+            (barUpdate, barUndo) = updateAndUndo(bar, foo)
           } yield
             for {
-              fooOpt <- fooRepository.update(foo.id, foo.name + " " + bar.name)
-              barOpt <- fooRepository.update(bar.id, bar.name + " " + foo.name)
-            } yield (fooOpt, barOpt).tupled)
+              fooOpt <- fooUpdate compensate fooUndo
+              barOpt <- barUpdate compensate barUndo
+            } yield (fooOpt, barOpt).tupled).map(_.transact))
         .map(_.headOption.flatten)
+    }
+
+    private def updateAndUndo(foo: Foo, other: Foo) = {
+      val addition  = " " + other.name
+      val fooUpdate = fooRepository.update(foo.id, foo.name + addition)
+      val fooUndo = fooRepository
+        .update(foo.id, foo.name.replace(addition, ""))
+        .unit
+      (fooUpdate, fooUndo)
     }
   }
 }
