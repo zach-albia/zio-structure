@@ -10,4 +10,4 @@ There are three mains to choose from:
   - `ParMain` - `ZStream`'s high-level concurrency demo, adding streams of `Long`s in single vs multi-threaded mode
 
 ## Service-level transactions
-See [`mergeFoos`](https://github.com/zach-albia/zio-structure/blob/master/src/main/scala/domain/FooService.scala#L52) for an example.
+See [`mergeFoos`](https://github.com/zach-albia/zio-structure/blob/master/src/main/scala/domain/FooService.scala#L55) for an example.
