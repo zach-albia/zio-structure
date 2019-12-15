@@ -1,5 +1,5 @@
 # zio-structure
-Just another way of structuring ZIO apps, with an emphasis on service-level transactions.
+Just another ZIO demo, with an emphasis on service-level transactions.
 
 ## How to run
 `sbt run`

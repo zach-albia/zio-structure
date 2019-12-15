@@ -49,24 +49,22 @@ object FooService {
     private def findFoos(fooId: Int, otherId: Int) = {
       val foo = fooRepository.fetch(fooId)
       val bar = fooRepository.fetch(otherId)
-      foo.zip(bar).map { case (f, b) => (f, b).tupled }
+      foo.zip(bar).map(_.tupled)
     }
 
     private def doMergeFoos(
         fooPairOpt: Option[(Foo, Foo)]): UIO[Option[(Foo, Foo)]] = {
-      ZIO
-        .sequence(
-          (for {
-            fooPair              <- fooPairOpt
-            (foo, bar)           = fooPair
-            (fooUpdate, fooUndo) = updateAndUndo(foo, bar)
-            (barUpdate, barUndo) = updateAndUndo(bar, foo)
-          } yield
-            for {
-              fooOpt <- fooUpdate compensate fooUndo
-              barOpt <- barUpdate compensate barUndo
-            } yield (fooOpt, barOpt).tupled).map(_.transact))
-        .map(_.headOption.flatten)
+      val optZio = (for {
+        fooPair              <- fooPairOpt
+        (foo, bar)           = fooPair
+        (fooUpdate, fooUndo) = updateAndUndo(foo, bar)
+        (barUpdate, barUndo) = updateAndUndo(bar, foo)
+      } yield
+        for {
+          fooOpt <- fooUpdate compensate fooUndo
+          barOpt <- barUpdate compensate barUndo
+        } yield (fooOpt, barOpt).tupled).map(_.transact)
+      ZIO.sequence(optZio).map(_.headOption.flatten)
     }
 
     private def updateAndUndo(foo: Foo, other: Foo) = {

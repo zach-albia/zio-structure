@@ -39,7 +39,7 @@ object Program {
     } yield ()
   }
 
-  def printError(err: Throwable) =
+  def printError(err: Throwable): ZIO[Console, Nothing, Int] =
     putStrLn(
       s"Execution failed with: $err\nStack " +
         s"trace:\n${err.getStackTrace
