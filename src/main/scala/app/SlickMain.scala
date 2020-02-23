@@ -1,35 +1,29 @@
 package app
 
 import domain.FooService
+import domain.SaveError.ThrowableError
 import persistence.slick_.Foos.foos
 import persistence.slick_._
-import slick.jdbc.H2Profile
 import slick.jdbc.H2Profile.api._
 import zio._
+import zio.console._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object SlickMain extends App {
 
+  val slickDB: ZLayer.NoDeps[Nothing, SlickDatabase] =
+    SlickDatabase.live("h2mem1")
+
+  val env: ZLayer[Any, Nothing, Console with SlickDatabase with FooService] =
+    Console.live ++ slickDB ++ (((slickDB ++ ec(global)) >>>
+      SlickFooRepository.live) >>> FooService.live)
+
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
-    (SlickZIO(foos.schema.create) *> Program())
-      .provideSome(createAppEnv(Database.forConfig("h2mem1")))
+    (for {
+      _ <- SlickDatabase.run(foos.schema.create).mapError(ThrowableError)
+      _ <- Program()
+    } yield ())
+      .provideLayer(env)
       .foldM(Program.printError, _ => ZIO.succeed(0))
-
-  private def createAppEnv(h2db: H2Profile.backend.Database)
-    : ZEnv => Program.Env with SlickDatabase = { base =>
-    new Program.Env with SlickDatabase {
-      val console  = base.console
-      val database = h2db
-      val fooService = new FooService.Service {
-        val fooRepository = new SlickFooRepository {
-          val slickDatabase = new SlickDatabase {
-            override val database = h2db
-          }
-          implicit val ec = global // let Slick use its own thread pool
-        }
-      }
-    }
-  }
-
 }

@@ -2,13 +2,9 @@ package domain
 
 import cats.implicits._
 import com.vladkopanev.zio.saga.Saga._
-import zio.{UIO, ZIO}
+import zio.{Has, IO, UIO, ZIO, ZLayer}
 
 import scala.language.{higherKinds, implicitConversions}
-
-trait FooService {
-  val fooService: FooService.Service
-}
 
 object FooService {
 
@@ -28,7 +24,7 @@ object FooService {
       * @param name The name of the `Foo`
       * @return The newly created `Foo`
       */
-    def createFoo(name: String): UIO[Foo] =
+    def createFoo(name: String): IO[SaveError, Foo] =
       fooRepository.create(name)
 
     /**
@@ -40,7 +36,7 @@ object FooService {
       * @param otherId Second `Foo` ID
       * @return The merged `Foo`s as an optional pair
       */
-    def mergeFoos(fooId: Int, otherId: Int): UIO[Option[(Foo, Foo)]] =
+    def mergeFoos(fooId: Int, otherId: Int): IO[SaveError, Option[(Foo, Foo)]] =
       for {
         fooBar      <- findFoos(fooId, otherId)
         mergeResult <- doMergeFoos(fooBar)
@@ -52,8 +48,7 @@ object FooService {
       foo.zip(bar).map(_.tupled)
     }
 
-    private def doMergeFoos(
-        fooPairOpt: Option[(Foo, Foo)]): UIO[Option[(Foo, Foo)]] = {
+    private def doMergeFoos(fooPairOpt: Option[(Foo, Foo)]) = {
       val optZio = (for {
         fooPair              <- fooPairOpt
         (foo, bar)           = fooPair
@@ -61,10 +56,10 @@ object FooService {
         (barUpdate, barUndo) = updateAndUndo(bar, foo)
       } yield
         for {
-          fooOpt <- fooUpdate compensate fooUndo
-          barOpt <- barUpdate compensate barUndo
+          fooOpt <- fooUpdate.compensate(fooUndo)
+          barOpt <- barUpdate.compensate(barUndo)
         } yield (fooOpt, barOpt).tupled).map(_.transact)
-      ZIO.sequence(optZio).map(_.headOption.flatten)
+      ZIO.collectAll(optZio).map(_.headOption.flatten)
     }
 
     private def updateAndUndo(foo: Foo, other: Foo) = {
@@ -76,4 +71,17 @@ object FooService {
       (fooUpdate, fooUndo)
     }
   }
+
+  val any: ZLayer[FooService, Nothing, FooService] =
+    ZLayer.requires[FooService]
+
+  val live: ZLayer[FooRepository, Nothing, FooService] =
+    ZLayer.fromService(repo => new Service { val fooRepository = repo })
+
+  def createFoo(name: String): ZIO[FooService, SaveError, Foo] =
+    ZIO.accessM(_.get.createFoo(name))
+
+  def mergeFoos(fooId: Int,
+                otherId: Int): ZIO[FooService, SaveError, Option[(Foo, Foo)]] =
+    ZIO.accessM(_.get.mergeFoos(fooId, otherId))
 }

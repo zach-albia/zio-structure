@@ -1,39 +1,57 @@
 package domain
 
-import zio.{Ref, UIO}
+import cats.syntax.OptionIdOps
+import domain.SaveError.ThrowableError
+import zio.{Has, IO, RIO, Ref, Task, UIO, ZIO, ZLayer}
 
 import scala.language.higherKinds
 
-/**
-  * I guess the convention is for traits to have environment members. In this
-  * case, `fooRepository` is such a member.
-  */
-trait FooRepository {
-
-  /** Environment member */
-  val fooRepository: FooRepository.Service
+sealed trait SaveError {
+  def message: String
 }
 
-/**
-  * This is the companion object containing the actual interface of this
-  * environment member
-  */
+object SaveError {
+  final case class NameAlreadyExists(name: String) extends SaveError {
+    def message = s"Name '${name}' already exists."
+  }
+  final case class ThrowableError(e: Throwable) extends SaveError {
+    def message = e.getMessage
+  }
+}
+
 object FooRepository {
 
   trait Service {
 
-    def create(name: String): UIO[Foo]
+    def create(name: String): IO[SaveError, Foo]
 
-    def fetch(id: Int): UIO[Option[Foo]]
+    def fetch(id: Int): IO[ThrowableError, Option[Foo]]
 
-    def update(id: Int, name: String): UIO[Option[Foo]]
+    def update(id: Int, name: String): IO[SaveError, Option[Foo]]
 
-    def delete(id: Int): UIO[Unit]
+    def delete(id: Int): IO[ThrowableError, Unit]
   }
 
-  /**
-    * Sample in-memory implementation
-    */
+  val any: ZLayer[FooRepository, Nothing, FooRepository] =
+    ZLayer.requires[FooRepository]
+
+  val inMem: ZLayer[Any, Nothing, FooRepository] =
+    ZLayer.fromEffect(for {
+      map        <- Ref.make(Map.empty[Int, Foo])
+      idSequence <- Ref.make(0)
+    } yield InMemoryFooRepository(map, idSequence))
+
+  //<editor-fold desc="zio-macros should replace these">
+  def create(name: String): ZIO[FooRepository, SaveError, Foo] =
+    ZIO.accessM(_.get.create(name))
+
+  def fetch(id: Int): ZIO[FooRepository, ThrowableError, Option[Foo]] =
+    ZIO.accessM(_.get.fetch(id))
+
+  def update(id: Int, name: String): ZIO[FooRepository, SaveError, Option[Foo]] =
+    ZIO.accessM(_.get.update(id, name))
+  //</editor-fold>
+
   final case class InMemoryFooRepository(
       mapTable: Ref[Map[Int, Foo]],
       idSequence: Ref[Int]
@@ -41,7 +59,7 @@ object FooRepository {
 
     def create(name: String): UIO[Foo] =
       for {
-        newId <- idSequence.update(_ + 1)
+        newId <- idSequence.updateAndGet(_ + 1)
         foo   = Foo(newId, name)
         _     <- mapTable.update(store => store + (newId -> foo))
       } yield foo

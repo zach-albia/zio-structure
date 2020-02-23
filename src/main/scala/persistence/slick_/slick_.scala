@@ -2,35 +2,29 @@ package persistence
 
 import slick.basic.BasicBackend
 import slick.dbio.DBIO
-import zio.ZIO
+import slick.jdbc.JdbcBackend
+import zio.{Has, ZIO, ZLayer}
 
+import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
 
 package object slick_ {
-  trait SlickDatabase {
-    val database: BasicBackend#DatabaseDef
-  }
+
+  type SlickDatabase = Has[BasicBackend#DatabaseDef]
+  type SlickZIO[T]   = ZIO[SlickDatabase, Throwable, T]
+
+  def ec(ec: ExecutionContext): ZLayer.NoDeps[Nothing, Has[ExecutionContext]] =
+    ZLayer.succeed(ec)
 
   object SlickDatabase {
 
-    object Live {
-      def apply(db: BasicBackend#DatabaseDef) = new SlickDatabase {
-        override val database = db
-      }
-    }
+    def run[T](action: DBIO[T]): SlickZIO[T] =
+      ZIO.accessM[SlickDatabase](s => ZIO.fromFuture(_ => s.get.run(action)))
+
+    def live(config: String): ZLayer.NoDeps[Nothing, SlickDatabase] =
+      ZLayer.fromEffect(ZIO.effectTotal(JdbcBackend.Database.forConfig(config)))
   }
 
-  type SlickZIO[T] = ZIO[SlickDatabase, Throwable, T]
-
-  object SlickZIO {
-
-    def apply[T](action: DBIO[T]): SlickZIO[T] = {
-      for {
-        env <- ZIO.environment[SlickDatabase]
-        res <- ZIO.fromFuture(implicit ec => env.database.run(action))
-      } yield res
-    }
-  }
-
-  implicit def DBIO2SlickZIO[T](dbio: DBIO[T]): SlickZIO[T] = SlickZIO[T](dbio)
+  implicit def DBIO2SlickZIO[T](dbio: DBIO[T]): SlickZIO[T] =
+    SlickDatabase.run(dbio)
 }
