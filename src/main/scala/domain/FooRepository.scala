@@ -1,23 +1,9 @@
 package domain
 
-import cats.syntax.OptionIdOps
 import domain.SaveError.ThrowableError
-import zio.{Has, IO, RIO, Ref, Task, UIO, ZIO, ZLayer}
+import zio._
 
 import scala.language.higherKinds
-
-sealed trait SaveError {
-  def message: String
-}
-
-object SaveError {
-  final case class NameAlreadyExists(name: String) extends SaveError {
-    def message = s"Name '${name}' already exists."
-  }
-  final case class ThrowableError(e: Throwable) extends SaveError {
-    def message = e.getMessage
-  }
-}
 
 object FooRepository {
 
@@ -32,6 +18,7 @@ object FooRepository {
     def delete(id: Int): IO[ThrowableError, Unit]
   }
 
+  // Still don't know what this is for...
   val any: ZLayer[FooRepository, Nothing, FooRepository] =
     ZLayer.requires[FooRepository]
 

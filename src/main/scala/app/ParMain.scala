@@ -9,18 +9,10 @@ object ParMain extends App {
 
   override def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val topNum      = 360000000L
-    val concurrency = Runtime.getRuntime.availableProcessors()
-    val segmentSize = topNum / concurrency
     val million     = 1000000
     val oneToTopNum = 1L to topNum
     val longs       = Stream.fromIterable(oneToTopNum) // for single-threaded
-    val longsByConcurrency = // for multi-threaded
-      Stream.unfold(1L)(s => {
-        val max = s + segmentSize
-        if (max - 1 <= topNum) Some((s until max, max))
-        else None
-      })
-    val sumSink = Sink.foldLeft[Long, Long](0)(_ + _)
+    val sumSink     = Sink.foldLeft[Long, Long](0)(_ + _)
     for {
       // single-threaded
       start1   <- nanoTime
@@ -30,7 +22,14 @@ object ParMain extends App {
       _        <- putStrLn(time)
       _        <- putStrLn(s"sum is $sumCount")
       // multi-threaded
-      start2 <- nanoTime
+      start2      <- nanoTime
+      concurrency <- ZIO.effectTotal(Runtime.getRuntime.availableProcessors)
+      segmentSize = topNum / concurrency
+      longsByConcurrency = Stream.unfold(1L)(s => {
+        val max = s + segmentSize
+        if (max - 1 <= topNum) Some((s until max, max))
+        else None
+      })
       sumCount2 <- longsByConcurrency
                     .mapMParUnordered(concurrency)(s =>
                       ZIO.succeed(s.reduce(_ + _)))

@@ -2,7 +2,7 @@ package domain
 
 import cats.implicits._
 import com.vladkopanev.zio.saga.Saga._
-import zio.{Has, IO, UIO, ZIO, ZLayer}
+import zio.{IO, ZIO, ZLayer}
 
 import scala.language.{higherKinds, implicitConversions}
 

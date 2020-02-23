@@ -13,9 +13,9 @@ import scala.language.implicitConversions
 object SlickFooRepository {
   val IGNORED_PLACEHOLDER = 42069
 
-  def live: ZLayer[Has[BasicBackend#DatabaseDef] with Has[ExecutionContext],
-                   Nothing,
-                   Has[FooRepository.Service]] =
+  def live
+    : ZLayer[SlickDatabase with Has[ExecutionContext], Nothing, FooRepository] =
+    // weird how not spelling out the type params here causes compile error
     ZLayer.fromServices[BasicBackend#DatabaseDef,
                         ExecutionContext,
                         FooRepository.Service] {

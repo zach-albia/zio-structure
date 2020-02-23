@@ -1,31 +1,16 @@
-package app
+import domain.FooService.{createFoo, mergeFoos}
+import domain.{FooService, SaveError}
+import zio.ZIO
+import zio.console.{Console, putStrLn}
 
-import domain._
-import zio.{Has, ZIO}
-import zio.console._
-
-import scala.language.higherKinds
-
-object Program {
-
+package object app {
   val BAD_ID = 42069
   val FAILURE_COMMENT =
     "// failure to merge means nothing is merged so a \"None\" is expected"
   val SUCCESS_COMMENT =
     "// displays foos with IDs 1 and 2, along with their merged names \"foo bar\" and \"bar foo\""
 
-  type Env = Has[FooService] with Has[Console]
-
-  type Result = (Option[(Foo, Foo)], Option[(Foo, Foo)])
-
-  import domain.FooService._
-
-  /**
-    * This is the whole program. It test-runs a failure and a success case.
-    *
-    * @return
-    */
-  def apply(): ZIO[Console with FooService, SaveError, Unit] = {
+  val program: ZIO[Console with FooService, SaveError, Unit] = {
     for {
       foo        <- createFoo("foo")
       bar        <- createFoo("bar")

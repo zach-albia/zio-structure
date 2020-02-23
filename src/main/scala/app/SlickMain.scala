@@ -16,14 +16,14 @@ object SlickMain extends App {
     SlickDatabase.live("h2mem1")
 
   val env: ZLayer[Any, Nothing, Console with SlickDatabase with FooService] =
-    Console.live ++ slickDB ++ (((slickDB ++ ec(global)) >>>
-      SlickFooRepository.live) >>> FooService.live)
+    Console.live ++ slickDB ++ (slickDB ++ ec(global) >>>
+      SlickFooRepository.live >>> FooService.live)
 
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] =
     (for {
       _ <- SlickDatabase.run(foos.schema.create).mapError(ThrowableError)
-      _ <- Program()
+      _ <- program
     } yield ())
       .provideLayer(env)
-      .foldM(Program.printError, _ => ZIO.succeed(0))
+      .foldM(printError, _ => ZIO.succeed(0))
 }
